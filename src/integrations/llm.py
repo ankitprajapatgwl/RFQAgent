@@ -1,19 +1,23 @@
-"""Thin wrapper around the Anthropic SDK.
+"""Shared Anthropic LLM client.
 
 Per the coding standards (file ``04``, rule 3.4), every external LLM call goes
-through this module — the service never imports ``anthropic`` directly. This
-is also the only place that applies the timeout and exponential-backoff retry
-policy. It lives inside ``sample_data`` rather than a shared ``integrations``
-layer because this module is currently the LLM's only consumer.
+through this one wrapper — no module imports ``anthropic`` directly — and this
+is the only place the timeout and exponential-backoff retry policy is applied.
+
+It lives in the ``integrations`` layer (not inside a single feature module)
+because more than one module now needs it: ``sample_data`` generates sample
+queries and ``email_draft`` drafts emails. Shared infrastructure belongs here
+so feature modules stay independent of one another.
 """
 
 from __future__ import annotations
 
 import time
+from functools import lru_cache
 
 import anthropic
 
-from src.config import Settings
+from src.config import Settings, get_settings
 from src.observability import get_logger
 
 logger = get_logger(__name__)
@@ -81,3 +85,9 @@ class LLMClient:
         raise LLMGenerationError(
             f"LLM call failed after {self._max_retries} attempts."
         ) from last_error
+
+
+@lru_cache(maxsize=1)
+def get_llm_client() -> LLMClient:
+    """Return the process-wide shared Anthropic LLM client."""
+    return LLMClient(get_settings())

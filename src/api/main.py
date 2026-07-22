@@ -17,7 +17,7 @@ from src.api.routes import dashboard
 from src.api.templating import STATIC_DIR
 from src.config import Settings, get_settings
 from src.integrations import get_database
-from src.modules import auth, sample_data
+from src.modules import auth, email_draft, sample_data
 from src.observability import configure_logging, get_logger
 
 logger = get_logger(__name__)
@@ -66,6 +66,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # JSON APIs first, then HTML page routes.
     app.include_router(auth.api_router)
     app.include_router(sample_data.api_router)
+    app.include_router(email_draft.api_router)
     app.include_router(auth.pages_router)
     app.include_router(dashboard.router)
 

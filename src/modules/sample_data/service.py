@@ -13,9 +13,9 @@ import uuid
 
 from pydantic import ValidationError
 
-from src.modules.sample_data.enums import EmailType
+from src.integrations.llm import LLMClient, LLMGenerationError
+from src.modules.email_patterns import EmailType
 from src.modules.sample_data.exceptions import SampleQueryGenerationError
-from src.modules.sample_data.llm_client import LLMClient, LLMGenerationError
 from src.modules.sample_data.models import SavedSampleQuery
 from src.modules.sample_data.prompts import build_prompts
 from src.modules.sample_data.repository import SampleQueryRepository

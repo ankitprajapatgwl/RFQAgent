@@ -5,19 +5,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.modules.sample_data.enums import EmailType
-
-
-class EmailTypeOption(BaseModel):
-    """A selectable email pattern shown in the dashboard's picker.
-
-    Attributes:
-        value: The underlying :class:`EmailType` value.
-        label: Human-readable label for display.
-    """
-
-    value: EmailType
-    label: str
+from src.modules.email_patterns import EmailType
 
 
 class GeneratedSample(BaseModel):

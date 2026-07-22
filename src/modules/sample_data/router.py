@@ -10,11 +10,10 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, status
 
 from src.modules.auth.deps import RequiredCookieUserDep
+from src.modules.email_patterns import EMAIL_TYPE_LABELS, EmailType, EmailTypeOption
 from src.modules.sample_data.deps import SampleQueryServiceDep
-from src.modules.sample_data.enums import EmailType
 from src.modules.sample_data.exceptions import SampleQueryGenerationError
-from src.modules.sample_data.prompts import EMAIL_TYPE_LABELS
-from src.modules.sample_data.schemas import EmailTypeOption, SavedSampleQueryRead
+from src.modules.sample_data.schemas import SavedSampleQueryRead
 
 router = APIRouter(prefix="/api/v1", tags=["sample-data"])
 

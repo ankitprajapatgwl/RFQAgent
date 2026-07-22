@@ -1,4 +1,4 @@
-"""Enumerations used across the sample-data module."""
+"""Enumerations used across every module that deals with email patterns."""
 
 from enum import StrEnum
 

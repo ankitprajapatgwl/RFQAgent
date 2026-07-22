@@ -1,25 +1,19 @@
 """Prompt construction for sample email-drafting query generation.
 
 Reads the relevant skill spec (and, for RFQ, the project's field checklist)
-straight from disk so the generated sample data always tracks whatever the
-skill files currently require — no field list duplicated in code.
+via the shared email-pattern catalog, so the generated sample data always
+tracks whatever the skill files currently require — no field list duplicated
+in code.
 """
 
 from __future__ import annotations
 
-from src.config.settings import PROJECT_ROOT
-from src.modules.sample_data.enums import EmailType
-
-_SKILLS_DIR = PROJECT_ROOT / "skills" / "emails-patterns"
-_RFQ_FIELDS_PATH = PROJECT_ROOT / "rfq_fields.md"
-
-EMAIL_TYPE_LABELS: dict[EmailType, str] = {
-    EmailType.APOLOGY: "Apology Email",
-    EmailType.FOLLOW_UP: "Follow-Up Email",
-    EmailType.NEGOTIATION: "Negotiation Email",
-    EmailType.RFQ: "RFQ Email",
-    EmailType.SAMPLE_REQUEST: "Sample Request Email",
-}
+from src.modules.email_patterns import (
+    EMAIL_TYPE_LABELS,
+    EmailType,
+    read_rfq_fields,
+    read_skill_spec,
+)
 
 _SYSTEM_PROMPT_TEMPLATE = """\
 You generate realistic, entirely fictional sample data for a "{label}", so a \
@@ -62,16 +56,6 @@ required and MUST appear, populated with a plausible value, in your output:
 """
 
 
-def _read_skill_spec(email_type: EmailType) -> str:
-    """Return the raw contents of the given email type's ``SKILL.md``."""
-    return (_SKILLS_DIR / email_type.value / "SKILL.md").read_text(encoding="utf-8")
-
-
-def _read_rfq_fields() -> str:
-    """Return the raw contents of the project's ``rfq_fields.md`` checklist."""
-    return _RFQ_FIELDS_PATH.read_text(encoding="utf-8")
-
-
 def build_prompts(email_type: EmailType) -> tuple[str, str]:
     """Build the system and user prompts for a sample-query generation call.
 
@@ -83,11 +67,11 @@ def build_prompts(email_type: EmailType) -> tuple[str, str]:
     """
     extra_context = ""
     if email_type is EmailType.RFQ:
-        extra_context = _RFQ_EXTRA_TEMPLATE.format(rfq_fields_text=_read_rfq_fields())
+        extra_context = _RFQ_EXTRA_TEMPLATE.format(rfq_fields_text=read_rfq_fields())
 
     system_prompt = _SYSTEM_PROMPT_TEMPLATE.format(
         label=EMAIL_TYPE_LABELS[email_type],
-        skill_text=_read_skill_spec(email_type),
+        skill_text=read_skill_spec(email_type),
         extra_context=extra_context,
     )
     return system_prompt, _USER_PROMPT

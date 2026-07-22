@@ -12,7 +12,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.modules.sample_data.enums import EmailType
+from src.modules.email_patterns import EmailType
 from src.modules.sample_data.models import SavedSampleQuery
 
 

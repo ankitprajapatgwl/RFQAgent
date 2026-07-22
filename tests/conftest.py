@@ -16,6 +16,7 @@ from src.modules.auth.password_hasher import BcryptPasswordHasher
 from src.modules.auth.repository import UserRepository
 from src.modules.auth.service import AuthService
 from src.modules.auth.token_service import TokenService
+from src.modules.email_draft.repository import EmailDraftRepository
 from src.modules.sample_data.repository import SampleQueryRepository
 
 
@@ -71,3 +72,9 @@ def auth_service(
 def sample_query_repository(db_session: Session) -> SampleQueryRepository:
     """Return a sample-query repository backed by the in-memory database."""
     return SampleQueryRepository(db_session)
+
+
+@pytest.fixture
+def email_draft_repository(db_session: Session) -> EmailDraftRepository:
+    """Return an email-draft repository backed by the in-memory database."""
+    return EmailDraftRepository(db_session)

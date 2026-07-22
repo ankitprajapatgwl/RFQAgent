@@ -256,17 +256,29 @@
                 >3</span
               >
               Verify & Modify Email
+              <span
+                id="draft-status-badge"
+                class="ml-auto inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700 border border-orange-200"
+              >
+                <i class="fa-solid fa-pen-to-square mr-1.5"></i> Draft — not
+                yet verified
+              </span>
             </h3>
+
+            <div
+              id="draft-error"
+              class="hidden mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm"
+            ></div>
 
             <div class="space-y-4">
               <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1"
-                  >Recipient (Mock)</label
+                  >Recipient</label
                 >
                 <input
                   type="email"
                   id="email-to"
-                  value="client@example.com"
+                  placeholder="supplier@example.com"
                   class="w-full border border-slate-300 rounded-lg p-2.5 text-slate-700 outline-none"
                 />
               </div>
@@ -292,18 +304,38 @@
               </div>
             </div>
 
-            <div class="mt-6 flex items-center justify-between border-t pt-4">
+            <div
+              class="mt-6 flex items-center justify-between border-t pt-4 flex-wrap gap-3"
+            >
               <span class="text-sm text-slate-500"
-                ><i class="fa-solid fa-info-circle"></i> Ready to
-                dispatch.</span
+                ><i class="fa-solid fa-info-circle"></i> Save your edits,
+                then verify before sending.</span
               >
-              <button
-                onclick="sendEmail()"
-                id="btn-send"
-                class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold shadow-md transition-all flex items-center transform hover:-translate-y-0.5"
-              >
-                <i class="fa-solid fa-paper-plane mr-2"></i> Send Email
-              </button>
+              <div class="flex items-center gap-3">
+                <button
+                  onclick="saveDraftChanges(this)"
+                  id="btn-save"
+                  class="bg-white hover:bg-slate-50 text-slate-700 px-5 py-2.5 rounded-lg font-medium border border-slate-300 transition-all flex items-center"
+                >
+                  <i class="fa-solid fa-floppy-disk mr-2"></i> Save Changes
+                </button>
+                <button
+                  onclick="verifyDraft(this)"
+                  id="btn-verify"
+                  class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium shadow-sm transition-all flex items-center"
+                >
+                  <i class="fa-solid fa-check mr-2"></i> Verify Email
+                </button>
+                <button
+                  onclick="sendEmail()"
+                  id="btn-send"
+                  disabled
+                  title="Verify the email before sending"
+                  class="bg-slate-300 text-slate-500 cursor-not-allowed px-8 py-3 rounded-lg font-semibold transition-all flex items-center"
+                >
+                  <i class="fa-solid fa-paper-plane mr-2"></i> Send Email
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -583,6 +615,21 @@
         return BADGE_STYLES[(idx < 0 ? 0 : idx) % BADGE_STYLES.length];
       }
 
+      // The currently drafted email (backend EmailDraftRead), once generated.
+      // Holds the draft's id/status so Save/Verify/Send act on the right record.
+      let currentDraft = null;
+
+      // FastAPI validation errors put a list of {msg, loc, ...} objects in
+      // `detail` (422s) instead of a plain string; normalize both shapes.
+      function extractErrorMessage(data, fallback) {
+        if (!data) return fallback;
+        if (typeof data.detail === "string") return data.detail;
+        if (Array.isArray(data.detail)) {
+          return data.detail.map((d) => d.msg || JSON.stringify(d)).join("; ");
+        }
+        return fallback;
+      }
+
       // Core UI Functions
       function switchTab(tabId) {
         // Update active state of content
@@ -747,39 +794,189 @@
         }
       }
 
-      function draftEmail() {
+      // Calls the email-draft agent: it loads the skill matching the
+      // selected email type and drafts a real subject+body from the query,
+      // saving the result immediately (status "draft").
+      async function draftEmail() {
+        const emailType = document.getElementById("email-type").value;
         const query = document.getElementById("query-text").value;
+        if (!emailType) {
+          alert("Please select an email type first.");
+          return;
+        }
         if (!query.trim()) {
           alert("Please select or generate a query first.");
           return;
         }
 
         const btn = document.getElementById("btn-draft");
+        const originalHtml = btn.innerHTML;
         btn.innerHTML =
-          '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Generating...';
+          '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Drafting...';
         btn.disabled = true;
 
-        // Simulate AI generating draft
-        setTimeout(() => {
-          document.getElementById("email-subject").value =
-            "Subject Generated by AI";
-          document.getElementById("email-body").value =
-            `Dear Client,\n\nI hope this email finds you well.\n\nBased on your query: "${query.substring(0, 30)}...", I am reaching out to discuss how our solutions can align with your goals.\n\nLet's schedule a brief call next week to explore this further.\n\nBest Regards,\n{{ user.full_name }}\nMailFlow Team`;
+        try {
+          const response = await fetch(
+            "/api/v1/email-drafts/" + encodeURIComponent(emailType),
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ query_text: query }),
+            }
+          );
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(
+              extractErrorMessage(data, "Failed to draft the email.")
+            );
+          }
 
-          document
-            .getElementById("email-verification-section")
-            .classList.remove("hidden");
+          loadDraftIntoForm(data);
           btn.innerHTML =
-            '<i class="fa-solid fa-check mr-2"></i> Generated successfully';
+            '<i class="fa-solid fa-check mr-2"></i> Drafted successfully';
           setTimeout(() => {
             btn.innerHTML =
               '<i class="fa-solid fa-pen mr-2"></i> Re-Draft Email Content';
-            btn.disabled = false;
           }, 2000);
-        }, 1000);
+        } catch (err) {
+          alert(err.message);
+          btn.innerHTML = originalHtml;
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      // Load a drafted email (from generation, or later a re-fetch) into the
+      // Verify & Modify form and refresh its status UI.
+      function loadDraftIntoForm(draft) {
+        currentDraft = draft;
+        document.getElementById("email-to").value = draft.recipient || "";
+        document.getElementById("email-subject").value = draft.subject;
+        document.getElementById("email-body").value = draft.body;
+        document.getElementById("draft-error").classList.add("hidden");
+        updateDraftStatusUI();
+        document
+          .getElementById("email-verification-section")
+          .classList.remove("hidden");
+      }
+
+      // Reflect currentDraft.status in the badge, and gate Send behind Verify
+      // — mirrors the backend rule that only an explicit verify action (never
+      // drafting or editing) can mark an email ready to send.
+      function updateDraftStatusUI() {
+        const badge = document.getElementById("draft-status-badge");
+        const sendBtn = document.getElementById("btn-send");
+        const verifyBtn = document.getElementById("btn-verify");
+        if (!currentDraft) return;
+
+        if (currentDraft.status === "verified") {
+          badge.className =
+            "ml-auto inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-200";
+          badge.innerHTML =
+            '<i class="fa-solid fa-check-circle mr-1.5"></i> Verified';
+          sendBtn.disabled = false;
+          sendBtn.title = "";
+          sendBtn.className =
+            "bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold shadow-md transition-all flex items-center transform hover:-translate-y-0.5";
+          verifyBtn.disabled = true;
+          verifyBtn.innerHTML =
+            '<i class="fa-solid fa-check mr-2"></i> Verified';
+        } else {
+          badge.className =
+            "ml-auto inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700 border border-orange-200";
+          badge.innerHTML =
+            '<i class="fa-solid fa-pen-to-square mr-1.5"></i> Draft — not yet verified';
+          sendBtn.disabled = true;
+          sendBtn.title = "Verify the email before sending";
+          sendBtn.className =
+            "bg-slate-300 text-slate-500 cursor-not-allowed px-8 py-3 rounded-lg font-semibold transition-all flex items-center";
+          verifyBtn.disabled = false;
+          verifyBtn.innerHTML = '<i class="fa-solid fa-check mr-2"></i> Verify Email';
+        }
+      }
+
+      // Modify: persist the human's edits to recipient/subject/body. Never
+      // touches status — verifying is a separate, explicit action.
+      async function saveDraftChanges(btn) {
+        if (!currentDraft) return;
+        const to = document.getElementById("email-to").value.trim();
+        const subject = document.getElementById("email-subject").value;
+        const body = document.getElementById("email-body").value;
+        const errorBox = document.getElementById("draft-error");
+
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Saving...';
+
+        try {
+          const response = await fetch(
+            "/api/v1/email-drafts/" + currentDraft.id,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                recipient: to || null,
+                subject: subject,
+                body: body,
+              }),
+            }
+          );
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(extractErrorMessage(data, "Failed to save changes."));
+          }
+          currentDraft = data;
+          errorBox.classList.add("hidden");
+          updateDraftStatusUI();
+          btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i> Saved';
+          setTimeout(() => {
+            btn.innerHTML = originalHtml;
+          }, 1500);
+        } catch (err) {
+          errorBox.textContent = err.message;
+          errorBox.classList.remove("hidden");
+          btn.innerHTML = originalHtml;
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      // Verify: the sole human-approval action. Backend guarantees drafting
+      // and modifying can never set this status themselves.
+      async function verifyDraft(btn) {
+        if (!currentDraft) return;
+        const errorBox = document.getElementById("draft-error");
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML =
+          '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Verifying...';
+
+        try {
+          const response = await fetch(
+            "/api/v1/email-drafts/" + currentDraft.id + "/verify",
+            { method: "POST" }
+          );
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(extractErrorMessage(data, "Failed to verify the draft."));
+          }
+          currentDraft = data;
+          errorBox.classList.add("hidden");
+          updateDraftStatusUI();
+        } catch (err) {
+          errorBox.textContent = err.message;
+          errorBox.classList.remove("hidden");
+          btn.innerHTML = originalHtml;
+          btn.disabled = false;
+        }
       }
 
       function sendEmail() {
+        if (!currentDraft || currentDraft.status !== "verified") {
+          alert("Please verify the email before sending.");
+          return;
+        }
+
         const to = document.getElementById("email-to").value;
         const subject = document.getElementById("email-subject").value;
         const body = document.getElementById("email-body").value;
@@ -789,7 +986,9 @@
           return;
         }
 
-        // Show Loading Overlay simulating API call
+        // Show Loading Overlay simulating API call. Sending itself has no
+        // backend yet (no outreach agent) — this stays a client-side stub
+        // that only records the dispatch locally for the Tracking tab.
         const overlay = document.getElementById("loading-overlay");
         overlay.classList.remove("hidden");
 
@@ -813,6 +1012,7 @@
           sentEmailsData.unshift(newEmail); // Add to top
 
           // Reset Draft Form
+          currentDraft = null;
           document.getElementById("email-type").value = "";
           document.getElementById("query-text").value = "";
           document

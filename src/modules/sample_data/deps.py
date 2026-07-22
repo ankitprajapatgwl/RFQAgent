@@ -2,23 +2,15 @@
 
 from __future__ import annotations
 
-from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
-from src.config import get_settings
 from src.integrations.database import get_db_session
-from src.modules.sample_data.llm_client import LLMClient
+from src.integrations.llm import LLMClient, get_llm_client
 from src.modules.sample_data.repository import SampleQueryRepository
 from src.modules.sample_data.service import SampleQueryService
-
-
-@lru_cache(maxsize=1)
-def get_llm_client() -> LLMClient:
-    """Return the shared Anthropic LLM client."""
-    return LLMClient(get_settings())
 
 
 def get_sample_query_repository(

@@ -14,8 +14,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from src.api.templating import templates
 from src.modules.auth.deps import OptionalCookieUserDep
-from src.modules.sample_data.prompts import EMAIL_TYPE_LABELS
-from src.modules.sample_data.schemas import EmailTypeOption
+from src.modules.email_patterns import EMAIL_TYPE_LABELS, EmailTypeOption
 
 router = APIRouter(tags=["dashboard"], include_in_schema=False)
 

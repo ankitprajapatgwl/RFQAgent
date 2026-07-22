@@ -1,14 +1,13 @@
 """Sample-data module — LLM-backed sample email-query generation and history.
 
-Self-contained: everything needed to understand or change this feature lives
-in this one folder.
+Everything needed to understand or change this feature lives in this one
+folder, except the ``EmailType`` vocabulary itself — shared with the
+``email_draft`` module — which lives in ``modules/email_patterns``.
 
-    enums.py           -- EmailType
     models.py           -- SavedSampleQuery ORM model
     schemas.py          -- Pydantic request/response contracts
     exceptions.py        -- typed domain errors
     prompts.py             -- builds LLM prompts from the skill files on disk
-    llm_client.py           -- thin Anthropic SDK wrapper (timeout + retry)
     repository.py             -- SavedSampleQuery data access
     service.py                 -- SampleQueryService (generate, persist, list)
     deps.py                     -- FastAPI dependency wiring
