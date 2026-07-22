@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import uuid
 
+from src.config import Settings
 from src.modules.auth.exceptions import (
     EmailAlreadyRegisteredError,
     InactiveUserError,
@@ -24,6 +25,11 @@ from src.modules.auth.token_service import TokenService
 from src.observability import get_logger
 
 logger = get_logger(__name__)
+
+# Upper bound on the numeric suffix tried when a user's derived sending
+# address collides with an existing one (two users with the same display
+# name). Far more than enough in practice; guards against an infinite loop.
+_MAX_SENDING_EMAIL_ATTEMPTS = 1000
 
 # A pre-computed hash of a throwaway value. Verifying against it when a user is
 # not found makes failed logins take roughly the same time whether the email
@@ -45,11 +51,24 @@ class AuthService:
         repository: UserRepository,
         password_hasher: PasswordHasher,
         token_service: TokenService,
+        settings: Settings | None = None,
     ) -> None:
-        """Store injected collaborators."""
+        """Store injected collaborators.
+
+        Args:
+            repository: Data access for user records.
+            password_hasher: Strategy used to hash and verify passwords.
+            token_service: Issues and validates JWT access tokens.
+            settings: Application settings, used only to derive each user's
+                permanent ``sending_email`` at registration. Optional so the
+                service can still be constructed with in-memory fakes in unit
+                tests; when omitted (or no sending domain is configured) the
+                ``sending_email`` is simply left unset.
+        """
         self._repository = repository
         self._hasher = password_hasher
         self._tokens = token_service
+        self._settings = settings
 
     def register(self, payload: UserCreate) -> User:
         """Register a new user account.
@@ -72,9 +91,43 @@ class AuthService:
             email=payload.email,
             full_name=payload.full_name,
             hashed_password=hashed,
+            sending_email=self._assign_sending_email(payload.full_name),
         )
-        logger.info("Registered new user id=%s.", user.id)
+        logger.info("Registered new user id=%s (sending_email=%s).", user.id, user.sending_email)
         return user
+
+    def _assign_sending_email(self, full_name: str) -> str | None:
+        """Derive a unique permanent outbound address for a new user.
+
+        The local part is the user's display name in CamelCase (matching the
+        email-delivery module's ``build_sending_email``), combined with the
+        configured default outbound domain. If two users share a display name,
+        an incrementing numeric suffix keeps the address unique. Returns
+        ``None`` when no settings/sending domain is configured — the app then
+        runs without new-thread inbound matching, which is acceptable.
+
+        Args:
+            full_name: The registering user's display name.
+
+        Returns:
+            A unique sending address, or ``None`` if unconfigured.
+        """
+        if self._settings is None:
+            return None
+        domain = self._settings.default_outbound_domain
+        if not domain:
+            return None
+
+        local = "".join(word.capitalize() for word in full_name.split()) or "User"
+        candidate = f"{local}@{domain}"
+        for suffix in range(1, _MAX_SENDING_EMAIL_ATTEMPTS):
+            if self._repository.get_by_sending_email(candidate) is None:
+                return candidate
+            candidate = f"{local}{suffix}@{domain}"
+        # Exhausted every suffix (astronomically unlikely) — leave it unset
+        # rather than block registration on an addressing edge case.
+        logger.warning("Could not derive a unique sending_email for %r.", full_name)
+        return None
 
     def authenticate(self, email: str, password: str) -> User:
         """Verify credentials and return the matching active user.

@@ -42,6 +42,7 @@ def get_auth_service(
     session: Annotated[Session, Depends(get_db_session)],
     hasher: Annotated[PasswordHasher, Depends(get_password_hasher)],
     tokens: Annotated[TokenService, Depends(get_token_service)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> AuthService:
     """Compose an :class:`AuthService` for the current request.
 
@@ -49,11 +50,13 @@ def get_auth_service(
         session: Request-scoped database session.
         hasher: Shared password hasher.
         tokens: Shared token service.
+        settings: Application settings (used to derive each user's permanent
+            ``sending_email`` at registration).
 
     Returns:
         A fully wired :class:`AuthService`.
     """
-    return AuthService(UserRepository(session), hasher, tokens)
+    return AuthService(UserRepository(session), hasher, tokens, settings)
 
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]

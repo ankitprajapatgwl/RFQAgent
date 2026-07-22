@@ -31,6 +31,13 @@ class User(Base):
             password is never stored.
         role: Authorisation role for the account.
         is_active: Whether the account may authenticate.
+        sending_email: The user's permanent, unique outbound address
+            (``{CamelCaseName}@{outbound_domain}``), assigned once at
+            registration when an email-sending domain is configured. It is
+            independent of the login ``email`` and is what the email-delivery
+            module matches a brand-new (headerless) supplier email against to
+            recover its owning user. ``None`` when no sending domain is
+            configured, in which case new-thread matching is simply skipped.
         created_at: UTC timestamp when the account was created.
     """
 
@@ -42,6 +49,9 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[UserRole] = mapped_column(String(20), default=UserRole.BUYER, nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    sending_email: Mapped[str | None] = mapped_column(
+        String(320), unique=True, index=True, nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, nullable=False
     )

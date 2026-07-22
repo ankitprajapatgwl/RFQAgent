@@ -54,6 +54,24 @@ class UserRepository:
         """
         return self._session.get(User, user_id)
 
+    def get_by_sending_email(self, sending_email: str) -> User | None:
+        """Return the user whose permanent ``sending_email`` matches, if any.
+
+        Used by the email-delivery module to recover the owning user of a
+        brand-new (headerless) supplier email — one that carries no
+        conversation id anywhere but was addressed to a user's unique sending
+        address. The comparison is case-insensitive.
+
+        Args:
+            sending_email: The bare recipient address to match.
+
+        Returns:
+            The matching :class:`User`, or ``None``.
+        """
+        normalized = self._normalize_email(sending_email)
+        stmt = select(User).where(User.sending_email == normalized)
+        return self._session.scalars(stmt).first()
+
     def create(
         self,
         *,
@@ -61,6 +79,7 @@ class UserRepository:
         full_name: str,
         hashed_password: str,
         role: UserRole = UserRole.BUYER,
+        sending_email: str | None = None,
     ) -> User:
         """Persist a new user and return the managed instance.
 
@@ -73,6 +92,8 @@ class UserRepository:
             full_name: Display name.
             hashed_password: Pre-hashed password digest.
             role: Authorisation role, defaulting to ``BUYER``.
+            sending_email: Permanent unique outbound address, or ``None`` when
+                no email-sending domain is configured. Stored normalised.
 
         Returns:
             The newly created, flushed :class:`User` with its ``id`` populated.
@@ -82,6 +103,7 @@ class UserRepository:
             full_name=full_name,
             hashed_password=hashed_password,
             role=role,
+            sending_email=self._normalize_email(sending_email) if sending_email else None,
         )
         self._session.add(user)
         self._session.flush()  # assigns the primary key without ending the transaction

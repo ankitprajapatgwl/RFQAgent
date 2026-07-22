@@ -62,6 +62,14 @@
           <span class="font-medium">Email Drafting</span>
         </button>
         <button
+          onclick="switchTab('rfq')"
+          id="nav-rfq"
+          class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+        >
+          <i class="fa-solid fa-file-invoice w-5 text-center"></i>
+          <span class="font-medium">Send RFQ</span>
+        </button>
+        <button
           onclick="switchTab('tracking')"
           id="nav-tracking"
           class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
@@ -340,6 +348,69 @@
           </div>
         </div>
 
+        <!-- TAB: Send RFQ -->
+        <div id="rfq-tab" class="tab-content max-w-2xl mx-auto space-y-6 pb-20">
+          <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <h3 class="text-lg font-semibold mb-1 flex items-center">
+              <i class="fa-solid fa-file-invoice text-blue-600 mr-2"></i>
+              Send a Request for Quotation
+            </h3>
+            <p class="text-sm text-slate-500 mb-4 border-b pb-4">
+              Sends a structured RFQ email (rendered from the built-in template)
+              and opens a tracked conversation so the supplier's reply threads
+              back automatically.
+            </p>
+
+            <div
+              id="rfq-error"
+              class="hidden mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm"
+            ></div>
+            <div
+              id="rfq-success"
+              class="hidden mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm"
+            ></div>
+
+            <div class="space-y-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1">Supplier email</label>
+                  <input type="email" id="rfq-supplier-email" placeholder="supplier@example.com"
+                    class="w-full border border-slate-300 rounded-lg p-2.5 text-slate-700 outline-none" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1">Supplier name</label>
+                  <input type="text" id="rfq-supplier-name" placeholder="Acme Manufacturing"
+                    class="w-full border border-slate-300 rounded-lg p-2.5 text-slate-700 outline-none" />
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Product</label>
+                <input type="text" id="rfq-product" placeholder="Bluetooth Speaker X200"
+                  class="w-full border border-slate-300 rounded-lg p-2.5 text-slate-700 outline-none" />
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1">Quantity (units)</label>
+                  <input type="number" id="rfq-quantity" min="1" placeholder="500"
+                    class="w-full border border-slate-300 rounded-lg p-2.5 text-slate-700 outline-none" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1">Target price / unit</label>
+                  <input type="text" id="rfq-target-price" placeholder="$12.00"
+                    class="w-full border border-slate-300 rounded-lg p-2.5 text-slate-700 outline-none" />
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-6 flex justify-end border-t pt-4">
+              <button onclick="sendRfq(this)" id="btn-send-rfq"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium shadow-sm transition-all flex items-center">
+                <i class="fa-solid fa-paper-plane mr-2"></i> Send RFQ
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- TAB: Tracking -->
         <div id="tracking-tab" class="tab-content max-w-6xl mx-auto">
           <div
@@ -506,36 +577,20 @@
         <div class="p-6 overflow-y-auto flex-1">
           <div class="grid grid-cols-2 gap-4 mb-6">
             <div>
-              <p
-                class="text-xs text-slate-500 uppercase tracking-wider font-semibold"
-              >
-                Recipient
-              </p>
+              <p class="text-xs text-slate-500 uppercase tracking-wider font-semibold">Supplier</p>
               <p id="detail-to" class="text-slate-800 font-medium mt-1">-</p>
             </div>
             <div>
-              <p
-                class="text-xs text-slate-500 uppercase tracking-wider font-semibold"
-              >
-                Sent Date
-              </p>
+              <p class="text-xs text-slate-500 uppercase tracking-wider font-semibold">Started</p>
               <p id="detail-date" class="text-slate-800 font-medium mt-1">-</p>
             </div>
             <div class="col-span-2">
-              <p
-                class="text-xs text-slate-500 uppercase tracking-wider font-semibold"
-              >
-                Subject
-              </p>
-              <p id="detail-subject" class="text-slate-800 font-medium mt-1">
-                -
-              </p>
+              <p class="text-xs text-slate-500 uppercase tracking-wider font-semibold">Subject</p>
+              <p id="detail-subject" class="text-slate-800 font-medium mt-1">-</p>
             </div>
             <div class="col-span-2 border-t pt-4 mt-2">
-              <p
-                class="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2"
-              >
-                Tracking Status
+              <p class="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2">
+                Conversation Status
               </p>
               <div
                 id="detail-status"
@@ -546,19 +601,15 @@
             </div>
           </div>
 
-          <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
-            <p
-              class="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-3"
-            >
-              Email Body Content
-            </p>
-            <div
-              id="detail-body"
-              class="text-slate-700 whitespace-pre-wrap font-serif text-sm"
-            >
-              <!-- Body injected here -->
-            </div>
+          <p class="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-3">
+            Conversation Thread
+          </p>
+          <div id="detail-loading" class="hidden py-8 text-center text-slate-500">
+            <i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2"></i>
+            <p class="text-sm">Loading conversation...</p>
           </div>
+          <!-- One card per sent/received message, injected by JS. -->
+          <div id="detail-thread" class="space-y-3"></div>
         </div>
         <div class="p-4 border-t bg-slate-50 text-right rounded-b-xl">
           <button
@@ -589,10 +640,10 @@
       // State Management
       let currentTab = "drafting";
 
-      // Emails dispatched during this session. Sending is not yet backed by an
-      // API, so this starts empty (real dispatch history will be loaded from
-      // the backend once the send endpoint exists).
-      let sentEmailsData = [];
+      // Tracked conversations loaded from the email-delivery backend
+      // (GET /api/v1/email-delivery/conversations). Populated by
+      // loadConversations() whenever the Tracking tab is opened.
+      let conversationsData = [];
 
       // Human-readable labels for each backend email type, injected from the
       // server so the query picker can badge saved queries by their type.
@@ -631,6 +682,17 @@
       }
 
       // Core UI Functions
+      const TABS = ["drafting", "rfq", "tracking"];
+      const TAB_TITLES = {
+        drafting: "Email Drafting Workspace",
+        rfq: "Send Request for Quotation",
+        tracking: "Email Tracking & History",
+      };
+      const NAV_INACTIVE =
+        "w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors";
+      const NAV_ACTIVE =
+        "w-full flex items-center space-x-3 px-4 py-3 rounded-lg bg-blue-600 text-white transition-colors";
+
       function switchTab(tabId) {
         // Update active state of content
         document
@@ -639,23 +701,17 @@
         document.getElementById(tabId + "-tab").classList.add("active");
 
         // Update active state of sidebar buttons
-        document.getElementById("nav-drafting").className =
-          "w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors";
-        document.getElementById("nav-tracking").className =
-          "w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors";
-
-        let activeClass =
-          "w-full flex items-center space-x-3 px-4 py-3 rounded-lg bg-blue-600 text-white transition-colors";
-        document.getElementById("nav-" + tabId).className = activeClass;
+        TABS.forEach((t) => {
+          const nav = document.getElementById("nav-" + t);
+          if (nav) nav.className = t === tabId ? NAV_ACTIVE : NAV_INACTIVE;
+        });
 
         // Update Title
         document.getElementById("page-title").innerText =
-          tabId === "drafting"
-            ? "Email Drafting Workspace"
-            : "Email Tracking & History";
+          TAB_TITLES[tabId] || "Dashboard";
 
         if (tabId === "tracking") {
-          renderTrackingTable();
+          loadConversations();
         }
       }
 
@@ -971,132 +1027,312 @@
         }
       }
 
-      function sendEmail() {
+      // Send the currently verified draft. Delegates to the email-delivery
+      // backend, which opens a tracked conversation and transmits the email
+      // through the configured provider. The backend re-checks that the draft
+      // is verified and has a recipient — the UI gate is a convenience, not
+      // the security boundary.
+      async function sendEmail() {
         if (!currentDraft || currentDraft.status !== "verified") {
           alert("Please verify the email before sending.");
           return;
         }
-
-        const to = document.getElementById("email-to").value;
-        const subject = document.getElementById("email-subject").value;
-        const body = document.getElementById("email-body").value;
-
-        if (!to || !subject || !body) {
-          alert("Please ensure To, Subject, and Body are filled.");
+        if (!currentDraft.recipient) {
+          alert("Please set and save a recipient address before sending.");
           return;
         }
 
-        // Show Loading Overlay simulating API call. Sending itself has no
-        // backend yet (no outreach agent) — this stays a client-side stub
-        // that only records the dispatch locally for the Tracking tab.
         const overlay = document.getElementById("loading-overlay");
+        document.getElementById("loading-text").innerText = "Sending Email...";
         overlay.classList.remove("hidden");
 
-        setTimeout(() => {
-          // Save to Tracking Data
-          const newEmail = {
-            id: Date.now(),
-            to: to,
-            subject: subject,
-            body: body,
-            date: new Date().toLocaleString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-              hour: "numeric",
-              minute: "2-digit",
-            }),
-            status: "pending", // pending = No response yet
-          };
+        try {
+          const response = await fetch(
+            "/api/v1/email-delivery/conversations/from-draft/" + currentDraft.id,
+            { method: "POST" }
+          );
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(extractErrorMessage(data, "Failed to send the email."));
+          }
 
-          sentEmailsData.unshift(newEmail); // Add to top
-
-          // Reset Draft Form
+          // Reset the draft form and jump to Tracking, which reloads from the
+          // backend and will show the new conversation.
           currentDraft = null;
           document.getElementById("email-type").value = "";
           document.getElementById("query-text").value = "";
           document
             .getElementById("email-verification-section")
             .classList.add("hidden");
-
           overlay.classList.add("hidden");
-
-          // Redirect to Tracking
           switchTab("tracking");
-        }, 1500);
+        } catch (err) {
+          overlay.classList.add("hidden");
+          const errorBox = document.getElementById("draft-error");
+          errorBox.textContent = err.message;
+          errorBox.classList.remove("hidden");
+        }
+      }
+
+      // Send a standalone RFQ from the "Send RFQ" tab.
+      async function sendRfq(btn) {
+        const payload = {
+          supplier_email: document.getElementById("rfq-supplier-email").value.trim(),
+          supplier_name: document.getElementById("rfq-supplier-name").value.trim(),
+          product_name: document.getElementById("rfq-product").value.trim(),
+          quantity: parseInt(document.getElementById("rfq-quantity").value, 10),
+          target_price: document.getElementById("rfq-target-price").value.trim(),
+        };
+        const errorBox = document.getElementById("rfq-error");
+        const successBox = document.getElementById("rfq-success");
+        errorBox.classList.add("hidden");
+        successBox.classList.add("hidden");
+
+        if (
+          !payload.supplier_email ||
+          !payload.supplier_name ||
+          !payload.product_name ||
+          !payload.quantity ||
+          !payload.target_price
+        ) {
+          errorBox.textContent = "Please fill in every field before sending.";
+          errorBox.classList.remove("hidden");
+          return;
+        }
+
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Sending...';
+        try {
+          const response = await fetch("/api/v1/email-delivery/conversations/rfq", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(extractErrorMessage(data, "Failed to send the RFQ."));
+          }
+          successBox.textContent =
+            "RFQ sent to " + payload.supplier_email + ". Track replies under Tracking.";
+          successBox.classList.remove("hidden");
+          [
+            "rfq-supplier-email",
+            "rfq-supplier-name",
+            "rfq-product",
+            "rfq-quantity",
+            "rfq-target-price",
+          ].forEach((id) => (document.getElementById(id).value = ""));
+        } catch (err) {
+          errorBox.textContent = err.message;
+          errorBox.classList.remove("hidden");
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+        }
+      }
+
+      // HTML-escape untrusted text (supplier names, subjects, bodies) before
+      // injecting it into the DOM.
+      function esc(value) {
+        const div = document.createElement("div");
+        div.textContent = value == null ? "" : String(value);
+        return div.innerHTML;
+      }
+
+      function formatDate(iso) {
+        if (!iso) return "-";
+        const d = new Date(iso);
+        if (isNaN(d)) return iso;
+        return d.toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        });
+      }
+
+      // Map a conversation's status + reply_count to a badge config.
+      function statusBadge(conv) {
+        if (conv.status === "declined") {
+          return {
+            color: "bg-red-100 text-red-700 border-red-200",
+            text: "Declined",
+            icon: "fa-ban",
+          };
+        }
+        if (conv.status === "replied" || conv.reply_count > 0) {
+          return {
+            color: "bg-green-100 text-green-700 border-green-200",
+            text: "Response Received",
+            icon: "fa-reply",
+          };
+        }
+        return {
+          color: "bg-orange-100 text-orange-700 border-orange-200",
+          text: "Awaiting Response",
+          icon: "fa-clock",
+        };
+      }
+
+      // Load the current user's tracked conversations from the backend and
+      // render the tracking table.
+      async function loadConversations() {
+        const tbody = document.getElementById("tracking-table-body");
+        const emptyState = document.getElementById("tracking-empty");
+        tbody.innerHTML =
+          '<tr><td colspan="5" class="p-8 text-center text-slate-500"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Loading...</td></tr>';
+        emptyState.classList.add("hidden");
+        try {
+          const response = await fetch("/api/v1/email-delivery/conversations");
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(extractErrorMessage(data, "Failed to load conversations."));
+          }
+          conversationsData = await response.json();
+          renderTrackingTable();
+        } catch (err) {
+          tbody.innerHTML =
+            '<tr><td colspan="5" class="p-6 text-center text-red-600">' +
+            esc(err.message) +
+            "</td></tr>";
+        }
       }
 
       function renderTrackingTable() {
         const tbody = document.getElementById("tracking-table-body");
         const emptyState = document.getElementById("tracking-empty");
 
-        if (sentEmailsData.length === 0) {
+        if (!conversationsData.length) {
           tbody.innerHTML = "";
           emptyState.classList.remove("hidden");
           return;
         }
-
         emptyState.classList.add("hidden");
-        let html = "";
 
-        sentEmailsData.forEach((item) => {
-          const statusConfig =
-            item.status === "replied"
-              ? {
-                  color: "bg-green-100 text-green-700 border-green-200",
-                  text: "Response Received",
-                  icon: "fa-reply",
-                }
-              : {
-                  color: "bg-orange-100 text-orange-700 border-orange-200",
-                  text: "Awaiting Response",
-                  icon: "fa-clock",
-                };
-
-          html += `
-                    <tr class="hover:bg-slate-50 transition-colors">
-                        <td class="p-4 border-b border-slate-100 font-medium text-slate-800">${item.to}</td>
-                        <td class="p-4 border-b border-slate-100 text-slate-600 truncate max-w-[200px]">${item.subject}</td>
-                        <td class="p-4 border-b border-slate-100 text-slate-500 text-sm">${item.date}</td>
-                        <td class="p-4 border-b border-slate-100">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusConfig.color}">
-                                <i class="fa-solid ${statusConfig.icon} mr-1.5"></i> ${statusConfig.text}
-                            </span>
-                        </td>
-                        <td class="p-4 border-b border-slate-100 text-center">
-                            <button onclick="viewDetails(${item.id})" class="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-2 rounded-lg transition-colors" title="View Complete Details">
-                                <i class="fa-solid fa-eye"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-        });
-        tbody.innerHTML = html;
+        tbody.innerHTML = conversationsData
+          .map((conv) => {
+            const badge = statusBadge(conv);
+            const subject = conv.subject || "(no subject)";
+            return `
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-4 border-b border-slate-100 font-medium text-slate-800">${esc(conv.supplier_email)}</td>
+                <td class="p-4 border-b border-slate-100 text-slate-600 truncate max-w-[200px]">${esc(subject)}</td>
+                <td class="p-4 border-b border-slate-100 text-slate-500 text-sm">${esc(formatDate(conv.created_at))}</td>
+                <td class="p-4 border-b border-slate-100">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${badge.color}">
+                    <i class="fa-solid ${badge.icon} mr-1.5"></i> ${badge.text}
+                  </span>
+                </td>
+                <td class="p-4 border-b border-slate-100 text-center">
+                  <button onclick="viewConversation('${esc(conv.id)}')" class="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-2 rounded-lg transition-colors" title="View conversation thread">
+                    <i class="fa-solid fa-eye"></i>
+                  </button>
+                </td>
+              </tr>`;
+          })
+          .join("");
       }
 
-      function viewDetails(id) {
-        const email = sentEmailsData.find((e) => e.id === id);
-        if (email) {
-          document.getElementById("detail-to").innerText = email.to;
-          document.getElementById("detail-date").innerText = email.date;
-          document.getElementById("detail-subject").innerText = email.subject;
-          document.getElementById("detail-body").innerText = email.body;
+      // Open the details modal and load one conversation's full thread.
+      async function viewConversation(conversationId) {
+        const modal = document.getElementById("modal-details");
+        const loading = document.getElementById("detail-loading");
+        const thread = document.getElementById("detail-thread");
+        modal.classList.remove("hidden");
+        thread.innerHTML = "";
+        loading.classList.remove("hidden");
+        document.getElementById("detail-to").innerText = "-";
+        document.getElementById("detail-date").innerText = "-";
+        document.getElementById("detail-subject").innerText = "-";
 
-          const statusContainer = document.getElementById("detail-status");
-          if (email.status === "replied") {
-            statusContainer.className =
-              "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200";
-            statusContainer.innerHTML =
-              '<i class="fa-solid fa-check-circle mr-2"></i> Client has replied';
-          } else {
-            statusContainer.className =
-              "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 border border-orange-200";
-            statusContainer.innerHTML =
-              '<i class="fa-solid fa-clock mr-2"></i> No response yet';
+        try {
+          const response = await fetch(
+            "/api/v1/email-delivery/conversations/" + conversationId
+          );
+          const conv = await response.json();
+          if (!response.ok) {
+            throw new Error(extractErrorMessage(conv, "Failed to load the conversation."));
           }
-
-          document.getElementById("modal-details").classList.remove("hidden");
+          loading.classList.add("hidden");
+          renderConversationDetail(conv);
+        } catch (err) {
+          loading.classList.add("hidden");
+          thread.innerHTML =
+            '<div class="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">' +
+            esc(err.message) +
+            "</div>";
         }
+      }
+
+      const ACTION_LABELS = {
+        QUOTE_RECEIVED: "Quote received",
+        DECLINED: "Declined",
+        CLARIFICATION_NEEDED: "Needs clarification",
+        MANUAL_REVIEW: "Manual review",
+      };
+
+      function renderConversationDetail(conv) {
+        document.getElementById("detail-to").innerText =
+          conv.supplier_name ? conv.supplier_name + " <" + conv.supplier_email + ">" : conv.supplier_email;
+        document.getElementById("detail-date").innerText = formatDate(conv.created_at);
+        document.getElementById("detail-subject").innerText = conv.subject || "(no subject)";
+
+        const badge = statusBadge(conv);
+        const statusContainer = document.getElementById("detail-status");
+        statusContainer.className =
+          "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border " + badge.color;
+        statusContainer.innerHTML =
+          '<i class="fa-solid ' + badge.icon + ' mr-2"></i> ' + badge.text;
+
+        const thread = document.getElementById("detail-thread");
+        const emails = conv.emails || [];
+        if (!emails.length) {
+          thread.innerHTML =
+            '<p class="text-sm text-slate-500">No messages recorded yet.</p>';
+          return;
+        }
+
+        thread.innerHTML = emails
+          .map((e) => {
+            const sent = e.direction === "sent";
+            const sideClass = sent
+              ? "bg-blue-50 border-blue-100"
+              : "bg-slate-50 border-slate-200";
+            const label = sent
+              ? '<i class="fa-solid fa-paper-plane text-blue-600 mr-1.5"></i> Sent'
+              : '<i class="fa-solid fa-inbox text-green-600 mr-1.5"></i> Received';
+            const action =
+              e.reply_action && ACTION_LABELS[e.reply_action]
+                ? '<span class="ml-2 px-2 py-0.5 rounded bg-slate-200 text-slate-600 text-xs">' +
+                  ACTION_LABELS[e.reply_action] +
+                  "</span>"
+                : "";
+            // Prefer plain text; fall back to the (escaped) HTML body.
+            const bodyText = e.body_text || e.body_html || "";
+            const attachments = (e.attachments || [])
+              .map(
+                (a) =>
+                  '<a href="' +
+                  esc(a.url) +
+                  '" target="_blank" class="inline-flex items-center text-xs text-blue-600 hover:underline mr-3"><i class="fa-solid fa-paperclip mr-1"></i>' +
+                  esc(a.filename) +
+                  "</a>"
+              )
+              .join("");
+            return `
+              <div class="p-4 rounded-lg border ${sideClass}">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-semibold text-slate-600">${label}${action}</span>
+                  <span class="text-xs text-slate-400">${esc(formatDate(e.created_at))}</span>
+                </div>
+                <p class="text-xs text-slate-500 mb-2">${esc(e.from_email)} &rarr; ${esc(e.to_email)}</p>
+                <div class="text-slate-700 whitespace-pre-wrap font-serif text-sm">${esc(bodyText)}</div>
+                ${attachments ? '<div class="mt-3 pt-2 border-t border-slate-200">' + attachments + "</div>" : ""}
+              </div>`;
+          })
+          .join("");
       }
 
       // Initialize App

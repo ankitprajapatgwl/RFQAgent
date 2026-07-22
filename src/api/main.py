@@ -17,7 +17,7 @@ from src.api.routes import dashboard
 from src.api.templating import STATIC_DIR
 from src.config import Settings, get_settings
 from src.integrations import get_database
-from src.modules import auth, email_draft, sample_data
+from src.modules import auth, email_delivery, email_draft, sample_data
 from src.observability import configure_logging, get_logger
 
 logger = get_logger(__name__)
@@ -63,10 +63,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     STATIC_DIR.mkdir(parents=True, exist_ok=True)
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
+    # Inbound email attachments, persisted by the email-delivery module and
+    # served under the same path stored on each attachment record.
+    attachments_dir = settings.attachments_dir
+    attachments_dir.mkdir(parents=True, exist_ok=True)
+    app.mount(
+        settings.attachments_url_path,
+        StaticFiles(directory=str(attachments_dir)),
+        name="attachments",
+    )
+
     # JSON APIs first, then HTML page routes.
     app.include_router(auth.api_router)
     app.include_router(sample_data.api_router)
     app.include_router(email_draft.api_router)
+    app.include_router(email_delivery.api_router)
+    app.include_router(email_delivery.webhook_router)
     app.include_router(auth.pages_router)
     app.include_router(dashboard.router)
 

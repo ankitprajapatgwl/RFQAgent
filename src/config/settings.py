@@ -88,10 +88,104 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = 30.0
     llm_max_retries: int = 3
 
+    # ── Email delivery (outbound send + inbound webhook) ────────────────
+    # Provider whose inbound-webhook payload the single ``/webhooks/inbound``
+    # endpoint knows how to parse, and the default provider used for outbound
+    # sends. Only EngageLab is registered today (see
+    # ``src.modules.email_delivery.providers.factory``), but the Master/Factory
+    # abstraction means adding another is one subclass + one registry line.
+    inbound_email_provider: str = "engagelab"
+    # Inbound emails scoring above this SpamAssassin-style threshold are
+    # discarded before being matched to a conversation.
+    email_spam_threshold: float = 5.0
+    # (connect, read) timeout in seconds applied to every provider HTTP call.
+    email_connect_timeout_seconds: float = 10.0
+    email_read_timeout_seconds: float = 30.0
+
+    # ── EngageLab credentials (provider key ``engagelab``) ──────────────
+    # Every field is optional so the app boots without email configured; the
+    # provider's own construction raises a clear error the first time a send
+    # is actually attempted with a missing value (see EmailMaster._require).
+    engagelab_api_user: str = Field(
+        default="", description="EngageLab dashboard API_USER (Trigger Email type)."
+    )
+    engagelab_api_key: str = Field(
+        default="", description="EngageLab API_KEY for the configured API_USER."
+    )
+    engagelab_api_base: str = Field(
+        default="https://email.api.engagelab.cc",
+        description="EngageLab REST base URL (Singapore default; Turkey: "
+        "https://emailapi-tr.engagelab.com).",
+    )
+    engagelab_outbound_domain: str = Field(
+        default="",
+        description="Verified EngageLab sending subdomain; also the inbound MX target.",
+    )
+    engagelab_company_name: str = Field(
+        default="Your Company",
+        description="From-header display name and email signature for EngageLab sends.",
+    )
+
     @property
     def is_sqlite(self) -> bool:
         """Return ``True`` when the configured database is SQLite."""
         return self.database_url.startswith("sqlite")
+
+    @property
+    def attachments_dir(self) -> Path:
+        """Directory where inbound email attachments are persisted.
+
+        Anchored at the project root so the location is independent of the
+        shell working directory the server was launched from. Served to the
+        browser under :attr:`attachments_url_path`.
+        """
+        return PROJECT_ROOT / "data" / "attachments"
+
+    # URL path the attachments directory is mounted under (see
+    # ``src.api.main.create_app``). Kept as a single constant so persisted
+    # attachment URLs and the static mount can never drift apart.
+    attachments_url_path: str = "/attachments"
+
+    def provider_outbound_domain(self, provider_name: str) -> str:
+        """Return the sending domain configured for ``provider_name``.
+
+        Read generically off the ``{provider}_outbound_domain`` field so a
+        new provider needs no change here — just its own settings field and a
+        factory registration. Used to build both the per-conversation dynamic
+        Reply-To address and the From address.
+
+        Args:
+            provider_name: Provider key, e.g. ``"engagelab"``.
+
+        Returns:
+            The configured domain, or ``""`` if unset/unknown.
+        """
+        return str(getattr(self, f"{provider_name.strip().lower()}_outbound_domain", "") or "")
+
+    def provider_company_name(self, provider_name: str) -> str:
+        """Return the From-header display name configured for ``provider_name``.
+
+        Args:
+            provider_name: Provider key, e.g. ``"engagelab"``.
+
+        Returns:
+            The configured display name, or ``"Your Company"`` if unset/unknown.
+        """
+        value = getattr(self, f"{provider_name.strip().lower()}_company_name", "") or ""
+        return str(value) or "Your Company"
+
+    @property
+    def default_outbound_domain(self) -> str:
+        """Best-effort sending domain for contexts with no provider chosen yet.
+
+        Registration assigns each user a permanent ``sending_email`` on this
+        domain before any provider is picked on a send form. Resolves the
+        configured inbound/default provider's outbound domain.
+
+        Returns:
+            The configured domain, or ``""`` if none is set.
+        """
+        return self.provider_outbound_domain(self.inbound_email_provider)
 
 
 @lru_cache(maxsize=1)
