@@ -78,6 +78,7 @@ class EngageLabEmailProvider(EmailMaster):
         subject: str,
         html_body: str,
         reply_to: str,
+        text_body: str | None = None,
         attachments: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Send one email via ``POST {base}/v1/mail/send`` (JSON, Basic Auth).
@@ -85,15 +86,29 @@ class EngageLabEmailProvider(EmailMaster):
         ``subject``/``content``/``reply_to``/``attachments``/``settings`` all
         nest inside ``body`` — EngageLab returns ``404`` if they are sent flat.
 
+        Deliverability hardening (why a draft could 200 yet never arrive):
+
+        * ``subject`` and ``from_name`` are collapsed to a single safe line —
+          a stray newline in an LLM-drafted subject is a header-injection that
+          EngageLab accepts but the downstream MTA silently drops.
+        * A ``text`` alternative always accompanies the ``html`` (derived from
+          it when not supplied) — HTML-only mail is far more likely to be
+          spam-filtered.
+        * ``to`` carries the recipient's display name when known, so the
+          message is addressed like the working RFQ path.
+
         Args:
             from_email: Dynamic sender address (suffix must match the verified
                 ``ENGAGELAB_OUTBOUND_DOMAIN``).
             from_name: Display name for the ``from`` header.
             to_email: Recipient address.
-            to_name: Recipient display name (accepted for interface parity).
+            to_name: Recipient display name; included in the ``to`` header when
+                non-empty.
             subject: Subject line.
             html_body: HTML body.
             reply_to: Dynamic conversation address sent as ``reply_to``.
+            text_body: Optional plain-text alternative; derived from
+                ``html_body`` when omitted.
             attachments: Optional attachments, each base64-encoded into the
                 ``body.attachments`` array.
 
@@ -105,10 +120,15 @@ class EngageLabEmailProvider(EmailMaster):
             EmailSendError: On a network error, a non-2xx status, or an
                 unparseable response body.
         """
+        clean_subject = self.sanitize_header(subject)
+        clean_from_name = self.sanitize_header(from_name)
+        clean_to_name = self.sanitize_header(to_name)
+        text_content = text_body if text_body is not None else self.html_to_text(html_body)
+
         mail_body: dict[str, Any] = {
             "reply_to": [reply_to],
-            "subject": subject,
-            "content": {"html": html_body},
+            "subject": clean_subject,
+            "content": {"html": html_body, "text": text_content},
             "settings": {
                 "send_mode": _SEND_MODE_TRANSACTIONAL,
                 "return_email_id": True,
@@ -125,9 +145,11 @@ class EngageLabEmailProvider(EmailMaster):
                 for att in attachments
             ]
 
+        from_header = f"{clean_from_name} <{from_email}>" if clean_from_name else from_email
+        to_header = f"{clean_to_name} <{to_email}>" if clean_to_name else to_email
         payload = {
-            "from": f"{from_name} <{from_email}>",
-            "to": [to_email],
+            "from": from_header,
+            "to": [to_header],
             "body": mail_body,
         }
 

@@ -10,8 +10,8 @@ matched inbound reply is persisted against its owning user for future use.
     exceptions.py  -- provider / webhook / service error types
     models.py      -- Conversation, Email, Attachment, UnmatchedEmail ORM models
     schemas.py     -- Pydantic request/response contracts
-    providers/     -- outbound EmailMaster + EngageLab + factory (Strategy+Factory)
-    webhooks/      -- inbound WebhookParserMaster + EngageLab + factory
+    providers/     -- outbound EmailMaster + EngageLab/SendGrid + factory (Strategy+Factory)
+    webhooks/      -- inbound WebhookParserMaster + EngageLab/SendGrid + factory
     repository.py  -- data access (conversations/emails/attachments/unmatched)
     service.py     -- EmailDeliveryService (create / send_draft / send_rfq / handle_inbound)
     deps.py        -- FastAPI dependency wiring

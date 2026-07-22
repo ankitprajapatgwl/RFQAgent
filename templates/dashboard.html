@@ -444,6 +444,7 @@
                     <th class="p-4 font-medium">Subject</th>
                     <th class="p-4 font-medium">Date Sent</th>
                     <th class="p-4 font-medium">Status</th>
+                    <th class="p-4 font-medium text-center">Replies</th>
                     <th class="p-4 font-medium text-center">Action</th>
                   </tr>
                 </thead>
@@ -999,6 +1000,11 @@
 
       // Verify: the sole human-approval action. Backend guarantees drafting
       // and modifying can never set this status themselves.
+      //
+      // Verify approves *exactly what is on screen*: the current recipient/
+      // subject/body edits are persisted first, then the status is flipped.
+      // Without this, an unsaved edit would be approved-but-never-sent (the
+      // send reads the last saved version), which was a real footgun.
       async function verifyDraft(btn) {
         if (!currentDraft) return;
         const errorBox = document.getElementById("draft-error");
@@ -1007,7 +1013,33 @@
         btn.innerHTML =
           '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Verifying...';
 
+        const to = document.getElementById("email-to").value.trim();
+        const subject = document.getElementById("email-subject").value;
+        const body = document.getElementById("email-body").value;
+
         try {
+          // 1) Persist the on-screen edits so the approved content is current.
+          const saveResp = await fetch(
+            "/api/v1/email-drafts/" + currentDraft.id,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                recipient: to || null,
+                subject: subject,
+                body: body,
+              }),
+            }
+          );
+          const saved = await saveResp.json();
+          if (!saveResp.ok) {
+            throw new Error(
+              extractErrorMessage(saved, "Failed to save changes before verifying.")
+            );
+          }
+          currentDraft = saved;
+
+          // 2) Flip the status to verified.
           const response = await fetch(
             "/api/v1/email-drafts/" + currentDraft.id + "/verify",
             { method: "POST" }
@@ -1182,7 +1214,7 @@
         const tbody = document.getElementById("tracking-table-body");
         const emptyState = document.getElementById("tracking-empty");
         tbody.innerHTML =
-          '<tr><td colspan="5" class="p-8 text-center text-slate-500"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Loading...</td></tr>';
+          '<tr><td colspan="6" class="p-8 text-center text-slate-500"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Loading...</td></tr>';
         emptyState.classList.add("hidden");
         try {
           const response = await fetch("/api/v1/email-delivery/conversations");
@@ -1194,7 +1226,7 @@
           renderTrackingTable();
         } catch (err) {
           tbody.innerHTML =
-            '<tr><td colspan="5" class="p-6 text-center text-red-600">' +
+            '<tr><td colspan="6" class="p-6 text-center text-red-600">' +
             esc(err.message) +
             "</td></tr>";
         }
@@ -1215,6 +1247,14 @@
           .map((conv) => {
             const badge = statusBadge(conv);
             const subject = conv.subject || "(no subject)";
+            const replyCount = conv.reply_count || 0;
+            // Count of supplier replies received on this conversation. A
+            // conversation can accrue many replies over time; each is stored
+            // and viewable in full via the thread modal (the eye icon).
+            const replyBadge =
+              replyCount > 0
+                ? `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-200" title="${replyCount} repl${replyCount === 1 ? "y" : "ies"} received"><i class="fa-solid fa-reply mr-1.5"></i> ${replyCount}</span>`
+                : `<span class="text-slate-400 text-sm" title="No replies yet">0</span>`;
             return `
               <tr class="hover:bg-slate-50 transition-colors">
                 <td class="p-4 border-b border-slate-100 font-medium text-slate-800">${esc(conv.supplier_email)}</td>
@@ -1225,6 +1265,7 @@
                     <i class="fa-solid ${badge.icon} mr-1.5"></i> ${badge.text}
                   </span>
                 </td>
+                <td class="p-4 border-b border-slate-100 text-center">${replyBadge}</td>
                 <td class="p-4 border-b border-slate-100 text-center">
                   <button onclick="viewConversation('${esc(conv.id)}')" class="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-2 rounded-lg transition-colors" title="View conversation thread">
                     <i class="fa-solid fa-eye"></i>

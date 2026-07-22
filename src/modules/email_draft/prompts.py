@@ -53,22 +53,73 @@ a bracketed placeholder for it:
 ---
 """
 
+_SENDER_TEMPLATE = """
+You are drafting on behalf of the signed-in user, whose real details are \
+below. Sign the email off ("Best regards", "Kind regards", etc.) using these \
+actual details — never a "[Your Name]" placeholder. Use only the fields that \
+are present; omit any that are blank.
 
-def build_prompts(email_type: EmailType, query_text: str) -> tuple[str, str]:
+{sender_lines}
+"""
+
+
+def _build_sender_context(
+    sender_name: str, sender_email: str, sender_role: str, company_name: str
+) -> str:
+    """Render the sender's real profile into a sign-off instruction block.
+
+    Args:
+        sender_name: The user's full name.
+        sender_email: The user's email address.
+        sender_role: The user's role (e.g. buyer), if meaningful.
+        company_name: The user's company/organisation name, if known.
+
+    Returns:
+        The formatted sender context block, or ``""`` when no details are set
+        (so unauthenticated/legacy callers get the original prompt verbatim).
+    """
+    fields = [
+        ("Name", sender_name),
+        ("Email", sender_email),
+        ("Role", sender_role),
+        ("Company", company_name),
+    ]
+    lines = [f"- {label}: {value.strip()}" for label, value in fields if value and value.strip()]
+    if not lines:
+        return ""
+    return _SENDER_TEMPLATE.format(sender_lines="\n".join(lines))
+
+
+def build_prompts(
+    email_type: EmailType,
+    query_text: str,
+    *,
+    sender_name: str = "",
+    sender_email: str = "",
+    sender_role: str = "",
+    company_name: str = "",
+) -> tuple[str, str]:
     """Build the system and user prompts for a drafting call.
 
     Args:
         email_type: Which email pattern to draft.
         query_text: The user's natural-language request to draft from.
+        sender_name: The signed-in user's full name, used in the sign-off.
+        sender_email: The signed-in user's email, used in the sign-off.
+        sender_role: The signed-in user's role, used in the sign-off if set.
+        company_name: The sender's company/organisation, used in the sign-off.
 
     Returns:
         A ``(system_prompt, user_prompt)`` pair. Unlike sample-query
         generation, the user prompt here is the caller's own query — the
-        draft must actually reflect what they asked for.
+        draft must actually reflect what they asked for. Sender details are
+        folded into the *system* prompt only, so the returned user prompt is
+        always exactly ``query_text``.
     """
     extra_context = ""
     if email_type is EmailType.RFQ:
         extra_context = _RFQ_EXTRA_TEMPLATE.format(rfq_fields_text=read_rfq_fields())
+    extra_context += _build_sender_context(sender_name, sender_email, sender_role, company_name)
 
     system_prompt = _SYSTEM_PROMPT_TEMPLATE.format(
         label=EMAIL_TYPE_LABELS[email_type],

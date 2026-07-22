@@ -12,6 +12,7 @@ Two routers are exported:
 
 from __future__ import annotations
 
+import re
 import uuid
 
 from fastapi import APIRouter, HTTPException, Request, status
@@ -31,6 +32,36 @@ from src.modules.email_draft.enums import DraftStatus
 from src.modules.email_draft.exceptions import EmailDraftNotFoundError
 
 router = APIRouter(prefix="/api/v1/email-delivery", tags=["email-delivery"])
+
+# Greetings the drafter opens a body with; the captured group is the recipient's
+# display name the model pulled from the query (e.g. "Dear Jane Smith,").
+_GREETING_RE = re.compile(
+    r"^\s*(?:dear|hi|hello|hey|greetings)\s+([^\n,.:;!?]+)", re.IGNORECASE
+)
+
+
+def extract_recipient_name(body: str) -> str:
+    """Recover the recipient's display name from a drafted email's greeting.
+
+    Task: "extract recipient_name from the query and pass it to the send API".
+    The drafter already resolves the name from the user's query into the body's
+    salutation, so the greeting is the canonical, no-extra-call source. An
+    unresolved bracketed placeholder (``[recipient name]``) is treated as no
+    name rather than sent literally.
+
+    Args:
+        body: The drafted email body.
+
+    Returns:
+        The recipient's display name, or ``""`` if none could be recovered.
+    """
+    match = _GREETING_RE.match(body or "")
+    if not match:
+        return ""
+    name = match.group(1).strip()
+    if "[" in name or "]" in name:
+        return ""
+    return name
 
 # HTTP status per inbound outcome. matched/unmatched/skipped return 200 so
 # providers don't retry a non-delivery-failure; only auth/parse failures are
@@ -96,7 +127,7 @@ def send_verified_draft(
             user_name=current_user.full_name,
             sender_email=current_user.sending_email,
             recipient=draft.recipient,
-            recipient_name="",
+            recipient_name=extract_recipient_name(draft.body),
             subject=draft.subject,
             body_text=draft.body,
         )

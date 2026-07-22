@@ -252,6 +252,34 @@ def test_modify_never_changes_status(email_draft_repository: EmailDraftRepositor
     assert updated.status == DraftStatus.DRAFT.value
 
 
+def test_modify_after_verify_returns_draft_to_draft_status(
+    email_draft_repository: EmailDraftRepository,
+) -> None:
+    """Editing a verified draft invalidates the approval — it drops to 'draft'."""
+    service = _service(email_draft_repository, json.dumps(_VALID_PAYLOAD))
+    user_id = uuid.uuid4()
+    saved = service.generate_and_save(user_id=user_id, email_type=EmailType.RFQ, query_text="q")
+    service.verify(user_id=user_id, draft_id=saved.id)
+
+    updated = service.modify(user_id=user_id, draft_id=saved.id, body="Different body text")
+
+    assert updated.status == DraftStatus.DRAFT.value
+
+
+def test_modify_with_unchanged_values_keeps_verified_status(
+    email_draft_repository: EmailDraftRepository,
+) -> None:
+    """A no-op edit (same values) must not invalidate an existing approval."""
+    service = _service(email_draft_repository, json.dumps(_VALID_PAYLOAD))
+    user_id = uuid.uuid4()
+    saved = service.generate_and_save(user_id=user_id, email_type=EmailType.RFQ, query_text="q")
+    verified = service.verify(user_id=user_id, draft_id=saved.id)
+
+    updated = service.modify(user_id=user_id, draft_id=saved.id, subject=verified.subject)
+
+    assert updated.status == DraftStatus.VERIFIED.value
+
+
 def test_modify_raises_for_other_users_draft(
     email_draft_repository: EmailDraftRepository,
 ) -> None:
@@ -307,3 +335,27 @@ def test_build_prompts_includes_rfq_field_checklist_only_for_rfq() -> None:
     assert "RFQ field checklist" in rfq_system_prompt
     assert "Cover Letter / Invitation" in rfq_system_prompt
     assert "RFQ field checklist" not in other_system_prompt
+
+
+def test_build_prompts_folds_sender_details_into_system_prompt_only() -> None:
+    from src.modules.email_draft.prompts import build_prompts
+
+    system_prompt, user_prompt = build_prompts(
+        EmailType.APOLOGY,
+        "Apologize for the delay.",
+        sender_name="Ankit Prajapat",
+        sender_email="ankit@example.com",
+    )
+
+    assert "Ankit Prajapat" in system_prompt
+    assert "ankit@example.com" in system_prompt
+    # The user prompt must stay exactly the query — sender details never leak in.
+    assert user_prompt == "Apologize for the delay."
+
+
+def test_build_prompts_omits_sender_block_when_no_details_given() -> None:
+    from src.modules.email_draft.prompts import build_prompts
+
+    system_prompt, _ = build_prompts(EmailType.APOLOGY, "q")
+
+    assert "signed-in user" not in system_prompt

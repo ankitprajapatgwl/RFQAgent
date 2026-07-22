@@ -2,6 +2,7 @@
 
 base.py       -- EmailMaster abstract base: address scheme + content templates
 engagelab.py  -- EngageLabEmailProvider (provider key "engagelab")
+sendgrid.py   -- SendGridEmailProvider (provider key "sendgrid")
 factory.py    -- EmailProviderFactory: provider key -> EmailMaster subclass
 """
 

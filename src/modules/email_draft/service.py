@@ -75,7 +75,15 @@ class EmailDraftService:
         self._repository = repository
 
     def generate_and_save(
-        self, *, user_id: uuid.UUID, email_type: EmailType, query_text: str
+        self,
+        *,
+        user_id: uuid.UUID,
+        email_type: EmailType,
+        query_text: str,
+        sender_name: str = "",
+        sender_email: str = "",
+        sender_role: str = "",
+        company_name: str = "",
     ) -> DraftedEmail:
         """Draft one email from a query and persist it as a new draft.
 
@@ -90,6 +98,10 @@ class EmailDraftService:
             query_text: The user's natural-language request — any kind of
                 query (freshly typed, a follow-up, or a previously
                 generated/saved sample query) is accepted as-is.
+            sender_name: The signed-in user's name, used for the sign-off.
+            sender_email: The signed-in user's email, used for the sign-off.
+            sender_role: The signed-in user's role, used for the sign-off.
+            company_name: The sender's company, used for the sign-off.
 
         Returns:
             The saved :class:`DraftedEmail`.
@@ -101,7 +113,14 @@ class EmailDraftService:
                 so the caller (and the pipeline) never crashes on a bad or
                 failed generation.
         """
-        system_prompt, user_prompt = build_prompts(email_type, query_text)
+        system_prompt, user_prompt = build_prompts(
+            email_type,
+            query_text,
+            sender_name=sender_name,
+            sender_email=sender_email,
+            sender_role=sender_role,
+            company_name=company_name,
+        )
         try:
             raw = self._llm_client.generate(system_prompt=system_prompt, user_prompt=user_prompt)
         except LLMGenerationError as exc:
@@ -168,9 +187,11 @@ class EmailDraftService:
     ) -> DraftedEmail:
         """Apply a human edit to an existing draft.
 
-        Only the supplied fields are changed; omitted ones keep their
-        current value. This never touches ``status`` — editing a draft
-        cannot verify it, by design (see :meth:`verify`).
+        Only fields whose value actually changes are written; omitted or
+        unchanged ones are left alone. Editing can never *verify* a draft —
+        but the reverse is enforced: editing a draft that was already verified
+        returns it to ``"draft"`` so content changed after approval can never
+        be sent without a fresh, explicit re-verification (see :meth:`verify`).
 
         Args:
             user_id: The requesting user's id (drafts are edited by their owner only).
@@ -187,14 +208,18 @@ class EmailDraftService:
         """
         draft = self.get_saved(user_id=user_id, draft_id=draft_id)
         changes: dict[str, object] = {}
-        if recipient is not None:
+        if recipient is not None and recipient != draft.recipient:
             changes["recipient"] = recipient
-        if subject is not None:
+        if subject is not None and subject != draft.subject:
             changes["subject"] = subject
-        if body is not None:
+        if body is not None and body != draft.body:
             changes["body"] = body
         if not changes:
             return draft
+        # A real edit invalidates a prior approval: drop back to "draft" so the
+        # human must verify the new content before it can be sent.
+        if draft.status == DraftStatus.VERIFIED.value:
+            changes["status"] = DraftStatus.DRAFT.value
         return self._repository.update(draft, **changes)
 
     def verify(self, *, user_id: uuid.UUID, draft_id: uuid.UUID) -> DraftedEmail:

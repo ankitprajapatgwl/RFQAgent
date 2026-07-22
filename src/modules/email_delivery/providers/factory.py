@@ -7,8 +7,8 @@ credentials, failing fast). Callers never import a concrete provider directly,
 so adding one is a new subclass plus one line in :data:`_PROVIDERS` — nothing
 else changes.
 
-Only EngageLab is registered today; the registry and the Master/Factory
-abstraction exist so a second provider (SendCloud, SendGrid, ...) can be
+EngageLab and SendGrid are registered today; the registry and the
+Master/Factory abstraction exist so a further provider (SendCloud, ...) can be
 dropped in later without touching the service, repository or routes.
 """
 
@@ -18,10 +18,12 @@ from src.config import Settings
 from src.modules.email_delivery.exceptions import ProviderConfigError
 from src.modules.email_delivery.providers.base import EmailMaster, logger
 from src.modules.email_delivery.providers.engagelab import EngageLabEmailProvider
+from src.modules.email_delivery.providers.sendgrid import SendGridEmailProvider
 
 # Registry mapping the lowercase provider key to its implementation class.
 _PROVIDERS: dict[str, type[EmailMaster]] = {
     "engagelab": EngageLabEmailProvider,
+    "sendgrid": SendGridEmailProvider,
 }
 
 

@@ -2,6 +2,7 @@
 
 base.py       -- WebhookParserMaster abstract base + InboundEmail / RawAttachment
 engagelab.py  -- EngageLabWebhookParser (verified nested payload shape)
+sendgrid.py   -- SendGridWebhookParser (Inbound Parse multipart form)
 factory.py    -- WebhookParserFactory: provider key -> parser subclass
 """
 

@@ -10,7 +10,7 @@ discoverable in exactly one place, as required by the coding standards
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Project root: ``src/config/settings.py`` -> up two parents (config -> src -> root).
@@ -89,12 +89,19 @@ class Settings(BaseSettings):
     llm_max_retries: int = 3
 
     # ── Email delivery (outbound send + inbound webhook) ────────────────
-    # Provider whose inbound-webhook payload the single ``/webhooks/inbound``
-    # endpoint knows how to parse, and the default provider used for outbound
-    # sends. Only EngageLab is registered today (see
-    # ``src.modules.email_delivery.providers.factory``), but the Master/Factory
-    # abstraction means adding another is one subclass + one registry line.
-    inbound_email_provider: str = "engagelab"
+    # The single active email provider: which provider transmits outbound
+    # sends AND whose inbound-webhook payload ``/webhooks/inbound`` parses.
+    # Switch providers by setting ``EMAIL_PROVIDER`` in the environment — e.g.
+    # ``EMAIL_PROVIDER=sendgrid`` — with no code change; each provider is one
+    # ``EmailMaster``/``WebhookParserMaster`` subclass plus a registry line (see
+    # ``src.modules.email_delivery.providers.factory`` /
+    # ``...webhooks.factory``). ``INBOUND_EMAIL_PROVIDER`` is accepted as a
+    # legacy alias so existing ``.env`` files keep working.
+    email_provider: str = Field(
+        default="engagelab",
+        validation_alias=AliasChoices("email_provider", "inbound_email_provider"),
+        description="Active email provider key, e.g. 'engagelab' or 'sendgrid'.",
+    )
     # Inbound emails scoring above this SpamAssassin-style threshold are
     # discarded before being matched to a conversation.
     email_spam_threshold: float = 5.0
@@ -102,10 +109,15 @@ class Settings(BaseSettings):
     email_connect_timeout_seconds: float = 10.0
     email_read_timeout_seconds: float = 30.0
 
-    # ── EngageLab credentials (provider key ``engagelab``) ──────────────
+    # Per-provider credentials follow the ``{provider}_outbound_domain`` /
+    # ``{provider}_company_name`` naming convention read generically by
+    # :meth:`provider_outbound_domain` / :meth:`provider_company_name`, so a
+    # new provider needs only its own fields here plus a factory registration.
     # Every field is optional so the app boots without email configured; the
-    # provider's own construction raises a clear error the first time a send
-    # is actually attempted with a missing value (see EmailMaster._require).
+    # provider's own construction raises a clear error the first time a send is
+    # actually attempted with a required value missing (see EmailMaster._require).
+
+    # ── EngageLab credentials (provider key ``engagelab``) ──────────────
     engagelab_api_user: str = Field(
         default="", description="EngageLab dashboard API_USER (Trigger Email type)."
     )
@@ -124,6 +136,23 @@ class Settings(BaseSettings):
     engagelab_company_name: str = Field(
         default="Your Company",
         description="From-header display name and email signature for EngageLab sends.",
+    )
+
+    # ── SendGrid credentials (provider key ``sendgrid``) ────────────────
+    sendgrid_api_key: str = Field(
+        default="", description="SendGrid API key (Settings → API Keys, 'Mail Send' scope)."
+    )
+    sendgrid_api_base: str = Field(
+        default="https://api.sendgrid.com",
+        description="SendGrid REST base URL (the v3 Mail Send API lives under it).",
+    )
+    sendgrid_outbound_domain: str = Field(
+        default="",
+        description="Authenticated SendGrid sending domain; also the Inbound Parse host.",
+    )
+    sendgrid_company_name: str = Field(
+        default="Your Company",
+        description="From-header display name and email signature for SendGrid sends.",
     )
 
     @property
@@ -180,12 +209,12 @@ class Settings(BaseSettings):
 
         Registration assigns each user a permanent ``sending_email`` on this
         domain before any provider is picked on a send form. Resolves the
-        configured inbound/default provider's outbound domain.
+        active provider's outbound domain.
 
         Returns:
             The configured domain, or ``""`` if none is set.
         """
-        return self.provider_outbound_domain(self.inbound_email_provider)
+        return self.provider_outbound_domain(self.email_provider)
 
 
 @lru_cache(maxsize=1)

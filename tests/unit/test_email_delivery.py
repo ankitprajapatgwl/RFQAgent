@@ -82,6 +82,62 @@ def test_parse_conv_id_from_body_footer(email_settings: Settings) -> None:
     assert provider.parse_conv_id_from_body(quoted) == {"conv_id": "3fa9c1b2"}
 
 
+# ── Deliverability hardening (the "200 but no email" fix) ─────────────────────
+
+
+def test_send_email_sanitizes_subject_and_adds_text_and_to_name(
+    email_settings: Settings,
+) -> None:
+    """A newline in the subject is collapsed, a text part is added, and the
+    recipient name is used in the ``to`` header — the fixes for a draft that
+    returns 200 yet never arrives."""
+    provider = EngageLabEmailProvider(email_settings)
+    with patch("httpx.post", return_value=_mock_send()) as mock_post:
+        provider.send_email(
+            from_email=f"JaneDoe@{_DOMAIN}",
+            from_name="Jane Doe",
+            to_email="supplier@acme.com",
+            to_name="Acme Buyer",
+            subject="Quote please\nInjected: header",
+            html_body="<div><p>Hello there</p></div>",
+            reply_to=f"JaneDoe.deadbeef@{_DOMAIN}",
+            text_body="Hello there",
+        )
+    payload = mock_post.call_args.kwargs["json"]
+    assert "\n" not in payload["body"]["subject"]
+    assert payload["body"]["subject"] == "Quote please Injected: header"
+    assert payload["body"]["content"]["text"] == "Hello there"
+    assert payload["to"] == ["Acme Buyer <supplier@acme.com>"]
+
+
+def test_send_email_derives_text_from_html_when_absent(email_settings: Settings) -> None:
+    provider = EngageLabEmailProvider(email_settings)
+    with patch("httpx.post", return_value=_mock_send()) as mock_post:
+        provider.send_email(
+            from_email=f"JaneDoe@{_DOMAIN}",
+            from_name="Jane Doe",
+            to_email="supplier@acme.com",
+            to_name="",
+            subject="Hi",
+            html_body="<p>Line one</p><p>Line two</p>",
+            reply_to=f"JaneDoe.deadbeef@{_DOMAIN}",
+        )
+    payload = mock_post.call_args.kwargs["json"]
+    assert "Line one" in payload["body"]["content"]["text"]
+    assert "Line two" in payload["body"]["content"]["text"]
+    assert "<p>" not in payload["body"]["content"]["text"]
+    assert payload["to"] == ["supplier@acme.com"]  # no display name → bare address
+
+
+def test_extract_recipient_name_from_greeting() -> None:
+    from src.modules.email_delivery.router import extract_recipient_name
+
+    assert extract_recipient_name("Dear Jane Smith,\n\nPlease quote.") == "Jane Smith"
+    assert extract_recipient_name("Hi John,\nThanks") == "John"
+    assert extract_recipient_name("Dear [recipient name],\nHi") == ""  # placeholder skipped
+    assert extract_recipient_name("No greeting here.") == ""
+
+
 # ── Outbound ──────────────────────────────────────────────────────────────────
 
 

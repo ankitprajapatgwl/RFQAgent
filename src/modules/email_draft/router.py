@@ -55,7 +55,11 @@ def generate_email_draft(
     """
     try:
         saved = email_draft_service.generate_and_save(
-            user_id=current_user.id, email_type=email_type, query_text=payload.query_text
+            user_id=current_user.id,
+            email_type=email_type,
+            query_text=payload.query_text,
+            sender_name=current_user.full_name,
+            sender_email=current_user.email,
         )
     except EmailDraftGenerationError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc

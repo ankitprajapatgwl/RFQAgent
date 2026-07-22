@@ -282,6 +282,48 @@ class EmailMaster(ABC):
         """Convert a display name to CamelCase, e.g. ``"Jane Doe"`` → ``"JaneDoe"``."""
         return "".join(word.capitalize() for word in (user_name or "").split()) or "User"
 
+    @staticmethod
+    def sanitize_header(value: str) -> str:
+        """Collapse a header value (subject / display name) to a single safe line.
+
+        Newlines or carriage returns in a header are an injection vector that
+        many providers accept with a ``2xx`` but then silently drop or mangle
+        the message — the exact "status 200 yet no email arrives" symptom seen
+        with LLM-drafted subjects that contained a stray line break. Any run of
+        control/whitespace characters is collapsed to a single space and the
+        result trimmed.
+
+        Args:
+            value: The raw header value.
+
+        Returns:
+            A single-line, whitespace-collapsed header value.
+        """
+        return re.sub(r"\s+", " ", (value or "").replace("\x00", "")).strip()
+
+    @staticmethod
+    def html_to_text(html_body: str) -> str:
+        """Derive a readable plain-text alternative from an HTML body.
+
+        A ``text/plain`` alternative alongside the HTML markedly improves
+        deliverability — HTML-only messages are far more likely to be spam-
+        filtered or dropped. Block-level tags become line breaks, the rest are
+        stripped, and HTML entities are unescaped.
+
+        Args:
+            html_body: The HTML body to convert.
+
+        Returns:
+            A plain-text rendering of ``html_body``.
+        """
+        text = re.sub(r"(?i)<\s*br\s*/?>", "\n", html_body or "")
+        text = re.sub(r"(?i)</\s*(p|div|tr|li|h[1-6]|table|ul|ol)\s*>", "\n", text)
+        text = re.sub(r"<[^>]+>", "", text)
+        text = html.unescape(text)
+        text = re.sub(r"[ \t]+", " ", text)
+        text = re.sub(r"\n\s*\n\s*\n+", "\n\n", text)
+        return text.strip()
+
     # ── Provider-specific transmission (must be overridden) ──────────────
 
     @abstractmethod
@@ -295,6 +337,7 @@ class EmailMaster(ABC):
         subject: str,
         html_body: str,
         reply_to: str,
+        text_body: str | None = None,
         attachments: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Transmit a single email through the concrete provider.
@@ -311,6 +354,9 @@ class EmailMaster(ABC):
             subject: Subject line.
             html_body: HTML body of the message.
             reply_to: The dynamic conversation address, so replies route back.
+            text_body: Optional plain-text alternative. When omitted the
+                provider derives one from ``html_body`` (see
+                :meth:`html_to_text`) so no message is ever sent HTML-only.
             attachments: Optional list of dicts, each with ``filename`` (str),
                 ``content`` (bytes) and ``content_type`` (str).
 

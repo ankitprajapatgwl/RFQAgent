@@ -14,7 +14,7 @@ Provider instances are built lazily and cached (via
 :class:`~src.modules.email_delivery.providers.factory.EmailProviderFactory`,
 which validates that provider's credentials), so the app boots fine with email
 unconfigured and only fails when a send is actually attempted. The inbound
-parser is likewise built on demand from ``settings.inbound_email_provider``.
+parser is likewise built on demand from ``settings.email_provider``.
 
 Async/sync note: only :meth:`handle_inbound` is ``async`` — it must ``await``
 the parser reading the request body. Everything downstream (matching, DB
@@ -85,8 +85,8 @@ class EmailDeliveryService:
         """Return the :class:`EmailMaster` for ``provider_name`` (cached).
 
         Args:
-            provider_name: Provider key; defaults to the configured
-                ``inbound_email_provider`` when omitted.
+            provider_name: Provider key; defaults to the active configured
+                ``email_provider`` when omitted.
 
         Returns:
             The (possibly newly built) provider instance.
@@ -94,7 +94,7 @@ class EmailDeliveryService:
         Raises:
             ProviderConfigError: If the provider is unknown or misconfigured.
         """
-        key = (provider_name or self._settings.inbound_email_provider or "").strip().lower()
+        key = (provider_name or self._settings.email_provider or "").strip().lower()
         if key not in self._provider_cache:
             self._provider_cache[key] = EmailProviderFactory.create(key, self._settings)
         return self._provider_cache[key]
@@ -103,7 +103,7 @@ class EmailDeliveryService:
         """Return the inbound parser for the configured provider (cached)."""
         if self._webhook is None:
             self._webhook = WebhookParserFactory.create(
-                self._settings.inbound_email_provider, self._settings
+                self._settings.email_provider, self._settings
             )
         return self._webhook
 
@@ -240,6 +240,7 @@ class EmailDeliveryService:
             to_name=recipient_name,
             subject=subject,
             html_body=html_body,
+            text_body=body_text,
             reply_to=conversation.reply_to_address,
         )
         self._repository.add_email(
@@ -414,7 +415,7 @@ class EmailDeliveryService:
         Returns:
             ``{"status": "unmatched"}`` or ``{"status": "matched", ...}``.
         """
-        provider = self.get_provider(self._settings.inbound_email_provider)
+        provider = self.get_provider(self._settings.email_provider)
         received_at = datetime.now(UTC)
 
         parsed = provider.parse_dynamic_email(inbound.to_email)
