@@ -118,6 +118,31 @@ def test_list_saved_returns_only_matching_user_and_type(
     assert saved[0].email_type == EmailType.RFQ.value
 
 
+def test_list_saved_without_email_type_returns_complete_history(
+    sample_query_repository: SampleQueryRepository,
+) -> None:
+    service = _service(sample_query_repository, json.dumps(_VALID_PAYLOAD))
+    user_id = uuid.uuid4()
+    other_user_id = uuid.uuid4()
+
+    service.generate_and_save(user_id=user_id, email_type=EmailType.RFQ)
+    service.generate_and_save(user_id=user_id, email_type=EmailType.APOLOGY)
+    service.generate_and_save(user_id=user_id, email_type=EmailType.FOLLOW_UP)
+    service.generate_and_save(user_id=other_user_id, email_type=EmailType.RFQ)
+
+    saved = service.list_saved(user_id=user_id)
+
+    # Every query this user generated, regardless of type — but not another
+    # user's.
+    assert len(saved) == 3
+    assert {row.email_type for row in saved} == {
+        EmailType.RFQ.value,
+        EmailType.APOLOGY.value,
+        EmailType.FOLLOW_UP.value,
+    }
+    assert all(row.user_id == user_id for row in saved)
+
+
 def test_list_saved_orders_most_recent_first(
     sample_query_repository: SampleQueryRepository,
 ) -> None:

@@ -98,12 +98,15 @@ class SampleQueryService:
             query_text=generated.query_text,
         )
 
-    def list_saved(self, *, user_id: uuid.UUID, email_type: EmailType) -> list[SavedSampleQuery]:
-        """Return a user's previously saved samples for one email type.
+    def list_saved(
+        self, *, user_id: uuid.UUID, email_type: EmailType | None = None
+    ) -> list[SavedSampleQuery]:
+        """Return a user's previously saved samples, newest first.
 
         Args:
             user_id: The requesting user's id.
-            email_type: Which email pattern to filter by.
+            email_type: Optional email pattern to filter by. When ``None``
+                (the default), the user's complete saved history is returned.
 
         Returns:
             Matching :class:`SavedSampleQuery` rows, most recent first.

@@ -66,19 +66,20 @@ def generate_sample_query(
 @router.get(
     "/sample-queries",
     response_model=list[SavedSampleQueryRead],
-    summary="List the current user's saved sample queries for one email type",
+    summary="List the current user's saved sample queries (optionally by email type)",
 )
 def list_saved_sample_queries(
-    email_type: EmailType,
     current_user: RequiredCookieUserDep,
     sample_query_service: SampleQueryServiceDep,
+    email_type: EmailType | None = None,
 ) -> list[SavedSampleQueryRead]:
-    """Return the current user's saved samples for the given email type.
+    """Return the current user's saved samples, newest first.
 
     Args:
-        email_type: Which email pattern to filter by (query parameter).
         current_user: The authenticated user.
         sample_query_service: Injected sample-query service.
+        email_type: Optional email pattern to filter by (query parameter).
+            Omit it to get the user's complete saved history across every type.
 
     Returns:
         Matching saved samples, most recent first.

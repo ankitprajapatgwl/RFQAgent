@@ -57,23 +57,21 @@ class SampleQueryRepository:
         return record
 
     def list_for_user(
-        self, *, user_id: uuid.UUID, email_type: EmailType
+        self, *, user_id: uuid.UUID, email_type: EmailType | None = None
     ) -> list[SavedSampleQuery]:
-        """Return a user's saved samples for one email type, newest first.
+        """Return a user's saved samples, newest first.
 
         Args:
             user_id: Owning user's id.
-            email_type: Which email pattern to filter by.
+            email_type: Optional email pattern to filter by. When ``None``
+                (the default), every saved sample for the user is returned
+                regardless of type.
 
         Returns:
             Matching :class:`SavedSampleQuery` rows, most recent first.
         """
-        stmt = (
-            select(SavedSampleQuery)
-            .where(
-                SavedSampleQuery.user_id == user_id,
-                SavedSampleQuery.email_type == email_type.value,
-            )
-            .order_by(SavedSampleQuery.created_at.desc())
-        )
+        stmt = select(SavedSampleQuery).where(SavedSampleQuery.user_id == user_id)
+        if email_type is not None:
+            stmt = stmt.where(SavedSampleQuery.email_type == email_type.value)
+        stmt = stmt.order_by(SavedSampleQuery.created_at.desc())
         return list(self._session.scalars(stmt).all())

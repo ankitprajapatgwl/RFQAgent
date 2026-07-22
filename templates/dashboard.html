@@ -1,258 +1,906 @@
-{% extends "app_base.html" %}
-{% block title %}Dashboard · RFQ Agent{% endblock %}
-{% block body %}
-<div class="app-shell" id="app-shell">
-  <aside class="sidebar" id="sidebar">
-    <button class="sidebar__toggle" id="sidebar-toggle" type="button" aria-label="Collapse menu">
-      <span>☰</span>
-    </button>
-    <nav class="sidebar__nav">
-      <button class="sidebar__item sidebar__item--active" type="button"
-              data-view="generate-email" title="Generate Email">
-        <span class="sidebar__icon">✉️</span>
-        <span class="sidebar__label">Generate Email</span>
-      </button>
-      <button class="sidebar__item" type="button"
-              data-view="track-response" title="Track Response">
-        <span class="sidebar__icon">📊</span>
-        <span class="sidebar__label">Track Response</span>
-      </button>
-    </nav>
-  </aside>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Email Dashboard Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <!-- FontAwesome for Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .tab-content {
+        display: none;
+      }
+      .tab-content.active {
+        display: block;
+      }
+      /* Smooth fade in for modals */
+      .modal-enter {
+        animation: fadeIn 0.2s ease-out forwards;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-800 h-screen overflow-hidden flex">
+    <!-- Sidebar -->
+    <aside
+      class="w-64 bg-slate-900 text-white flex flex-col h-full shadow-xl z-20 hidden md:flex"
+    >
+      <div class="p-5 border-b border-slate-700 flex items-center space-x-3">
+        <div class="bg-blue-500 text-white p-2 rounded-lg">
+          <i class="fa-solid fa-envelope-open-text"></i>
+        </div>
+        <h1 class="text-xl font-bold tracking-wide">MailFlow</h1>
+      </div>
 
-  <div class="app-main">
-    <header class="topbar">
-      <div class="brand brand--compact">RFQ<span>Agent</span></div>
-      <div class="profile-menu" id="profile-menu">
-        <button class="profile-menu__trigger" id="profile-trigger" type="button" aria-label="Profile">
-          <span class="avatar">{{ user.full_name[0] | upper }}</span>
+      <nav class="flex-1 p-4 space-y-2">
+        <button
+          onclick="switchTab('drafting')"
+          id="nav-drafting"
+          class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg bg-blue-600 text-white transition-colors"
+        >
+          <i class="fa-solid fa-pen-nib w-5 text-center"></i>
+          <span class="font-medium">Email Drafting</span>
         </button>
-        <div class="profile-menu__dropdown" id="profile-dropdown" hidden>
-          <div class="profile-menu__name">{{ user.full_name }}</div>
-          <div class="profile-menu__email">{{ user.email }}</div>
-          <div class="profile-menu__role">{{ user.role.value }}</div>
-          <a class="btn btn--secondary profile-menu__logout" href="/logout">Sign out</a>
+        <button
+          onclick="switchTab('tracking')"
+          id="nav-tracking"
+          class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+        >
+          <i class="fa-solid fa-chart-line w-5 text-center"></i>
+          <span class="font-medium">Tracking</span>
+        </button>
+      </nav>
+
+      <div
+        class="p-4 text-xs text-slate-500 border-t border-slate-800 text-center"
+      >
+        &copy; 2026 MailFlow Inc.
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col h-full overflow-hidden relative">
+      <!-- Header -->
+      <header
+        class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shadow-sm z-10"
+      >
+        <div class="flex items-center md:hidden">
+          <button class="text-slate-500 hover:text-slate-700">
+            <i class="fa-solid fa-bars text-xl"></i>
+          </button>
+          <span class="ml-4 font-bold text-lg">MailFlow</span>
+        </div>
+        <div class="hidden md:block">
+          <h2 id="page-title" class="text-xl font-semibold text-slate-800">
+            Email Drafting Workspace
+          </h2>
+        </div>
+
+        <!-- User Profile Dropdown -->
+        <div class="relative">
+          <button
+            onclick="toggleProfileMenu()"
+            class="flex items-center space-x-2 focus:outline-none ring-2 ring-transparent hover:ring-blue-100 rounded-full transition-all"
+          >
+            <img
+              src="https://ui-avatars.com/api/?name={{ user.full_name | urlencode }}&background=0D8ABC&color=fff"
+              alt="User Profile"
+              class="h-10 w-10 rounded-full shadow-sm border border-slate-200"
+            />
+            <i class="fa-solid fa-chevron-down text-xs text-slate-400"></i>
+          </button>
+
+          <!-- Profile Menu Modal -->
+          <div
+            id="profile-menu"
+            class="hidden absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden transform transition-all z-50"
+          >
+            <div class="p-4 border-b border-slate-100 bg-slate-50">
+              <p class="text-sm font-semibold text-slate-800">
+                {{ user.full_name }}
+              </p>
+              <p class="text-xs text-slate-500 truncate">{{ user.email }}</p>
+              <span
+                class="inline-block mt-2 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-md capitalize"
+                >{{ user.role.value }}</span
+              >
+            </div>
+            <div class="p-2">
+              <button
+                class="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 rounded-lg transition-colors flex items-center"
+              >
+                <i class="fa-solid fa-user-circle w-5"></i> View Profile
+              </button>
+              <button
+                class="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 rounded-lg transition-colors flex items-center"
+              >
+                <i class="fa-solid fa-cog w-5"></i> Settings
+              </button>
+            </div>
+            <div class="p-2 border-t border-slate-100">
+              <button
+                onclick="logout()"
+                class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center"
+              >
+                <i class="fa-solid fa-sign-out-alt w-5"></i> Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Scrollable Area -->
+      <main class="flex-1 overflow-y-auto p-6 relative bg-slate-50/50">
+        <!-- TAB: Drafting -->
+        <div
+          id="drafting-tab"
+          class="tab-content active max-w-4xl mx-auto space-y-6 pb-20"
+        >
+          <!-- Step 1: Configuration -->
+          <div
+            class="bg-white p-6 rounded-xl shadow-sm border border-slate-200"
+          >
+            <h3
+              class="text-lg font-semibold mb-4 border-b pb-2 flex items-center"
+            >
+              <span
+                class="bg-blue-100 text-blue-600 w-6 h-6 flex items-center justify-center rounded-full text-sm mr-2"
+                >1</span
+              >
+              Select Email Type
+            </h3>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2"
+                >Campaign / Email Category</label
+              >
+              <select
+                id="email-type"
+                class="w-full border border-slate-300 rounded-lg p-3 text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              >
+                <option value="">-- Select an option --</option>
+                {% for opt in email_types %}
+                <option value="{{ opt.value }}">{{ opt.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <!-- Step 2: Query Generation/Selection -->
+          <div
+            class="bg-white p-6 rounded-xl shadow-sm border border-slate-200"
+          >
+            <h3
+              class="text-lg font-semibold mb-4 border-b pb-2 flex items-center"
+            >
+              <span
+                class="bg-blue-100 text-blue-600 w-6 h-6 flex items-center justify-center rounded-full text-sm mr-2"
+                >2</span
+              >
+              Query Context
+            </h3>
+
+            <div
+              class="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 mb-4"
+            >
+              <button
+                onclick="openExistingQueriesModal()"
+                class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-3 rounded-lg font-medium transition-colors border border-slate-300 flex justify-center items-center"
+              >
+                <i class="fa-solid fa-list-ul mr-2"></i> Select Existing Query
+              </button>
+              <div class="text-slate-400 font-medium text-sm text-center">
+                OR
+              </div>
+              <button
+                onclick="generateSampleQuery(this)"
+                class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-3 rounded-lg font-medium transition-colors border border-blue-200 flex justify-center items-center"
+              >
+                <i class="fa-solid fa-magic mr-2"></i> Generate Sample Query
+              </button>
+            </div>
+
+            <div class="relative">
+              <label class="block text-sm font-medium text-slate-700 mb-2"
+                >Selected / Generated Query:</label
+              >
+              <textarea
+                id="query-text"
+                rows="3"
+                class="w-full border border-slate-300 rounded-lg p-3 text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-y"
+                placeholder="Your query context will appear here..."
+                style="height: 350px;"
+              ></textarea>
+            </div>
+
+            <div class="mt-4 flex justify-end">
+              <button
+                onclick="draftEmail()"
+                id="btn-draft"
+                class="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2.5 rounded-lg font-medium shadow-sm transition-all flex items-center"
+              >
+                <i class="fa-solid fa-pen mr-2"></i> Draft Email Content
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 3: Verification and Modification (Hidden by default until drafted) -->
+          <div
+            id="email-verification-section"
+            class="bg-white p-6 rounded-xl shadow-sm border border-blue-200 hidden ring-1 ring-blue-50"
+          >
+            <h3
+              class="text-lg font-semibold mb-4 border-b pb-2 flex items-center text-blue-800"
+            >
+              <span
+                class="bg-blue-600 text-white w-6 h-6 flex items-center justify-center rounded-full text-sm mr-2"
+                >3</span
+              >
+              Verify & Modify Email
+            </h3>
+
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1"
+                  >Recipient (Mock)</label
+                >
+                <input
+                  type="email"
+                  id="email-to"
+                  value="client@example.com"
+                  class="w-full border border-slate-300 rounded-lg p-2.5 text-slate-700 outline-none"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1"
+                  >Subject</label
+                >
+                <input
+                  type="text"
+                  id="email-subject"
+                  class="w-full border border-slate-300 rounded-lg p-2.5 text-slate-700 font-medium outline-none"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1"
+                  >Body</label
+                >
+                <textarea
+                  id="email-body"
+                  rows="8"
+                  class="w-full border border-slate-300 rounded-lg p-3 text-slate-700 outline-none resize-y font-serif"
+                ></textarea>
+              </div>
+            </div>
+
+            <div class="mt-6 flex items-center justify-between border-t pt-4">
+              <span class="text-sm text-slate-500"
+                ><i class="fa-solid fa-info-circle"></i> Ready to
+                dispatch.</span
+              >
+              <button
+                onclick="sendEmail()"
+                id="btn-send"
+                class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold shadow-md transition-all flex items-center transform hover:-translate-y-0.5"
+              >
+                <i class="fa-solid fa-paper-plane mr-2"></i> Send Email
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: Tracking -->
+        <div id="tracking-tab" class="tab-content max-w-6xl mx-auto">
+          <div
+            class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"
+          >
+            <div
+              class="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50"
+            >
+              <h3 class="text-lg font-semibold text-slate-800">
+                Email Dispatch History
+              </h3>
+              <div class="relative">
+                <i
+                  class="fa-solid fa-search absolute left-3 top-3 text-slate-400"
+                ></i>
+                <input
+                  type="text"
+                  placeholder="Search emails..."
+                  class="pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+                />
+              </div>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr
+                    class="bg-white text-slate-500 text-sm uppercase tracking-wider border-b border-slate-200"
+                  >
+                    <th class="p-4 font-medium">Recipient</th>
+                    <th class="p-4 font-medium">Subject</th>
+                    <th class="p-4 font-medium">Date Sent</th>
+                    <th class="p-4 font-medium">Status</th>
+                    <th class="p-4 font-medium text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody
+                  id="tracking-table-body"
+                  class="text-sm divide-y divide-slate-100"
+                >
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Empty State for Tracking -->
+            <div
+              id="tracking-empty"
+              class="hidden p-10 text-center flex flex-col items-center justify-center"
+            >
+              <div
+                class="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mb-4 text-2xl"
+              >
+                <i class="fa-solid fa-inbox"></i>
+              </div>
+              <h4 class="text-slate-700 font-medium text-lg">
+                No emails sent yet
+              </h4>
+              <p class="text-slate-500 mt-1 max-w-sm mx-auto">
+                Emails you draft and send will appear here for tracking their
+                response status.
+              </p>
+              <button
+                onclick="switchTab('drafting')"
+                class="mt-4 text-blue-600 font-medium hover:underline"
+              >
+                Go to Drafts
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- MODALS -->
+
+    <!-- 1. Select Existing Query Modal -->
+    <div
+      id="modal-queries"
+      class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center"
+    >
+      <div
+        class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 modal-enter flex flex-col max-h-[80vh]"
+      >
+        <div class="p-5 border-b flex justify-between items-center">
+          <h3 class="text-lg font-semibold text-slate-800">
+            Select Existing Query
+          </h3>
+          <button
+            onclick="closeModal('modal-queries')"
+            class="text-slate-400 hover:text-slate-600"
+          >
+            <i class="fa-solid fa-times text-xl"></i>
+          </button>
+        </div>
+        <div class="p-5 overflow-y-auto flex-1 space-y-3">
+          <p class="text-sm text-slate-500 mb-4">
+            Click on a previously saved query to load it into your current
+            draft. Showing every query you have generated so far.
+          </p>
+
+          <!-- Loading state -->
+          <div id="queries-loading" class="hidden py-10 text-center text-slate-500">
+            <i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2"></i>
+            <p class="text-sm">Loading saved queries...</p>
+          </div>
+
+          <!-- Empty state -->
+          <div id="queries-empty" class="hidden py-10 text-center">
+            <div
+              class="w-12 h-12 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mb-3 text-xl mx-auto"
+            >
+              <i class="fa-solid fa-inbox"></i>
+            </div>
+            <p class="text-slate-600 text-sm">
+              You haven't generated any queries yet.
+            </p>
+            <p class="text-slate-400 text-xs mt-1">
+              Use "Generate Sample Query" to create one.
+            </p>
+          </div>
+
+          <!-- Error state -->
+          <div
+            id="queries-error"
+            class="hidden p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm"
+          ></div>
+
+          <!-- Populated by JS -->
+          <div id="queries-list" class="space-y-3"></div>
+        </div>
+        <div class="p-4 border-t bg-slate-50 text-right rounded-b-xl">
+          <button
+            onclick="closeModal('modal-queries')"
+            class="px-4 py-2 text-slate-600 hover:text-slate-800 font-medium"
+          >
+            Cancel
+          </button>
         </div>
       </div>
-    </header>
+    </div>
 
-    <main class="view-area">
-      <section class="view" id="view-generate-email" data-view-panel="generate-email">
-        <h2 class="view__title">Generate Email</h2>
-        <p class="view__hint">Pick an email type, then generate a random fictional sample —
-          or reuse one you generated earlier — to draft from.</p>
-
-        <div class="sample-query">
-          <label class="field">
-            <span class="field__label">Email type</span>
-            <select class="field__input" id="email-type-select">
-              {% for opt in email_types %}
-              <option value="{{ opt.value }}">{{ opt.label }}</option>
-              {% endfor %}
-            </select>
-          </label>
-
-          <label class="field">
-            <span class="field__label">Saved sample data</span>
-            <select class="field__input" id="saved-select">
-              <option value="">— Generate a new sample —</option>
-            </select>
-          </label>
-
-          <div class="sample-actions">
-            <button class="btn btn--primary" id="generate-btn" type="button">
-              Generate random sample query
-            </button>
+    <!-- 2. View Email Details Modal -->
+    <div
+      id="modal-details"
+      class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center"
+    >
+      <div
+        class="bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 modal-enter flex flex-col max-h-[90vh]"
+      >
+        <div
+          class="p-5 border-b flex justify-between items-center bg-slate-50 rounded-t-xl"
+        >
+          <h3 class="text-lg font-semibold text-slate-800">
+            Email Details Tracking
+          </h3>
+          <button
+            onclick="closeModal('modal-details')"
+            class="text-slate-400 hover:text-slate-600"
+          >
+            <i class="fa-solid fa-times text-xl"></i>
+          </button>
+        </div>
+        <div class="p-6 overflow-y-auto flex-1">
+          <div class="grid grid-cols-2 gap-4 mb-6">
+            <div>
+              <p
+                class="text-xs text-slate-500 uppercase tracking-wider font-semibold"
+              >
+                Recipient
+              </p>
+              <p id="detail-to" class="text-slate-800 font-medium mt-1">-</p>
+            </div>
+            <div>
+              <p
+                class="text-xs text-slate-500 uppercase tracking-wider font-semibold"
+              >
+                Sent Date
+              </p>
+              <p id="detail-date" class="text-slate-800 font-medium mt-1">-</p>
+            </div>
+            <div class="col-span-2">
+              <p
+                class="text-xs text-slate-500 uppercase tracking-wider font-semibold"
+              >
+                Subject
+              </p>
+              <p id="detail-subject" class="text-slate-800 font-medium mt-1">
+                -
+              </p>
+            </div>
+            <div class="col-span-2 border-t pt-4 mt-2">
+              <p
+                class="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2"
+              >
+                Tracking Status
+              </p>
+              <div
+                id="detail-status"
+                class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
+              >
+                -
+              </div>
+            </div>
           </div>
 
-          <div id="sample-error" class="alert alert--error" hidden></div>
-
-          <div id="sample-result" class="sample-result" hidden>
-            <label class="field">
-              <span class="field__label">Sample query</span>
-              <textarea class="field__input sample-result__textarea" id="sample-query-text"
-                        rows="5" readonly></textarea>
-            </label>
-            <dl class="details" id="sample-fields"></dl>
-
-            <div class="sample-actions">
-              <button class="btn btn--secondary" id="draft-btn" type="button">Email Draft</button>
-            </div>
-            <div id="draft-stub-note" class="alert alert--success" hidden>
-              Email drafting is coming soon — it will use this sample data to draft the email.
+          <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+            <p
+              class="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-3"
+            >
+              Email Body Content
+            </p>
+            <div
+              id="detail-body"
+              class="text-slate-700 whitespace-pre-wrap font-serif text-sm"
+            >
+              <!-- Body injected here -->
             </div>
           </div>
         </div>
-      </section>
+        <div class="p-4 border-t bg-slate-50 text-right rounded-b-xl">
+          <button
+            onclick="closeModal('modal-details')"
+            class="px-5 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 font-medium"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
 
-      <section class="view" id="view-track-response" data-view-panel="track-response" hidden>
-        <h2 class="view__title">Track Response</h2>
-      </section>
-    </main>
-  </div>
-</div>
-{% endblock %}
-{% block scripts %}
-<script>
-  (function () {
-    // ---- Sidebar collapse + view switching ----
-    const sidebar = document.getElementById("sidebar");
-    const sidebarToggle = document.getElementById("sidebar-toggle");
-    const navItems = document.querySelectorAll(".sidebar__item");
-    const viewPanels = document.querySelectorAll("[data-view-panel]");
+    <!-- Loading Overlay -->
+    <div
+      id="loading-overlay"
+      class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex flex-col items-center justify-center"
+    >
+      <i class="fa-solid fa-circle-notch fa-spin text-4xl text-white mb-4"></i>
+      <h2 class="text-white text-xl font-semibold" id="loading-text">
+        Sending Email...
+      </h2>
+      <p class="text-slate-300 text-sm mt-2">
+        Please wait while we process the API call.
+      </p>
+    </div>
 
-    sidebarToggle.addEventListener("click", function () {
-      sidebar.classList.toggle("sidebar--collapsed");
-    });
+    <script>
+      // State Management
+      let currentTab = "drafting";
 
-    navItems.forEach(function (item) {
-      item.addEventListener("click", function () {
-        navItems.forEach(function (other) {
-          other.classList.toggle("sidebar__item--active", other === item);
-        });
-        const target = item.dataset.view;
-        viewPanels.forEach(function (panel) {
-          panel.hidden = panel.dataset.viewPanel !== target;
-        });
-      });
-    });
+      // Emails dispatched during this session. Sending is not yet backed by an
+      // API, so this starts empty (real dispatch history will be loaded from
+      // the backend once the send endpoint exists).
+      let sentEmailsData = [];
 
-    // ---- Profile menu ----
-    const profileMenu = document.getElementById("profile-menu");
-    const profileTrigger = document.getElementById("profile-trigger");
-    const profileDropdown = document.getElementById("profile-dropdown");
+      // Human-readable labels for each backend email type, injected from the
+      // server so the query picker can badge saved queries by their type.
+      const EMAIL_TYPE_LABELS = {
+        {% for opt in email_types %}"{{ opt.value }}": "{{ opt.label }}",
+        {% endfor %}
+      };
 
-    profileTrigger.addEventListener("click", function (event) {
-      event.stopPropagation();
-      profileDropdown.hidden = !profileDropdown.hidden;
-    });
-    document.addEventListener("click", function (event) {
-      if (!profileMenu.contains(event.target)) {
-        profileDropdown.hidden = true;
+      // A small rotating palette so each email type gets a stable badge color.
+      const BADGE_STYLES = [
+        "bg-purple-100 text-purple-700",
+        "bg-yellow-100 text-yellow-700",
+        "bg-green-100 text-green-700",
+        "bg-blue-100 text-blue-700",
+        "bg-pink-100 text-pink-700",
+      ];
+      function badgeStyleFor(emailType) {
+        const keys = Object.keys(EMAIL_TYPE_LABELS);
+        const idx = keys.indexOf(emailType);
+        return BADGE_STYLES[(idx < 0 ? 0 : idx) % BADGE_STYLES.length];
       }
-    });
 
-    // ---- Generate Email panel ----
-    const emailTypeSelect = document.getElementById("email-type-select");
-    const savedSelect = document.getElementById("saved-select");
-    const generateBtn = document.getElementById("generate-btn");
-    const draftBtn = document.getElementById("draft-btn");
-    const draftStubNote = document.getElementById("draft-stub-note");
-    const resultBox = document.getElementById("sample-result");
-    const errorBox = document.getElementById("sample-error");
-    const queryText = document.getElementById("sample-query-text");
-    const fieldsList = document.getElementById("sample-fields");
+      // Core UI Functions
+      function switchTab(tabId) {
+        // Update active state of content
+        document
+          .querySelectorAll(".tab-content")
+          .forEach((el) => el.classList.remove("active"));
+        document.getElementById(tabId + "-tab").classList.add("active");
 
-    let savedSamples = [];
+        // Update active state of sidebar buttons
+        document.getElementById("nav-drafting").className =
+          "w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors";
+        document.getElementById("nav-tracking").className =
+          "w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors";
 
-    function showError(message) {
-      errorBox.textContent = message;
-      errorBox.hidden = false;
-    }
+        let activeClass =
+          "w-full flex items-center space-x-3 px-4 py-3 rounded-lg bg-blue-600 text-white transition-colors";
+        document.getElementById("nav-" + tabId).className = activeClass;
 
-    function renderSample(sample) {
-      errorBox.hidden = true;
-      queryText.value = sample.query_text;
-      fieldsList.innerHTML = "";
-      Object.keys(sample.fields).forEach(function (key) {
-        const row = document.createElement("div");
-        row.className = "details__row";
-        const dt = document.createElement("dt");
-        dt.textContent = key.replace(/_/g, " ");
-        const dd = document.createElement("dd");
-        dd.textContent = sample.fields[key];
-        row.appendChild(dt);
-        row.appendChild(dd);
-        fieldsList.appendChild(row);
+        // Update Title
+        document.getElementById("page-title").innerText =
+          tabId === "drafting"
+            ? "Email Drafting Workspace"
+            : "Email Tracking & History";
+
+        if (tabId === "tracking") {
+          renderTrackingTable();
+        }
+      }
+
+      // Profile Menu Toggle
+      function toggleProfileMenu() {
+        const menu = document.getElementById("profile-menu");
+        menu.classList.toggle("hidden");
+      }
+
+      // Close dropdown when clicking outside
+      window.addEventListener("click", function (e) {
+        if (!e.target.closest(".relative")) {
+          document.getElementById("profile-menu").classList.add("hidden");
+        }
       });
-      draftStubNote.hidden = true;
-      resultBox.hidden = false;
-    }
 
-    function sampleLabel(sample) {
-      const when = new Date(sample.created_at).toLocaleString();
-      const preview =
-        sample.query_text.length > 40 ? sample.query_text.slice(0, 40) + "…" : sample.query_text;
-      return when + " — " + preview;
-    }
+      function logout() {
+        // Clears the HttpOnly session cookie server-side and returns to login.
+        window.location.href = "/logout";
+      }
 
-    async function loadSavedSamples(emailType) {
-      savedSelect.innerHTML = '<option value="">— Generate a new sample —</option>';
-      resultBox.hidden = true;
-      errorBox.hidden = true;
-      savedSamples = [];
-      try {
-        const response = await fetch(
-          "/api/v1/sample-queries?email_type=" + encodeURIComponent(emailType)
-        );
-        if (!response.ok) return;
-        savedSamples = await response.json();
-        savedSamples.forEach(function (sample) {
-          const option = document.createElement("option");
-          option.value = sample.id;
-          option.textContent = sampleLabel(sample);
-          savedSelect.appendChild(option);
+      // Modal Controls
+
+      // Open the "Select Existing Query" modal and load the current user's
+      // complete saved-query history (every email type) from the backend.
+      async function openExistingQueriesModal() {
+        const loading = document.getElementById("queries-loading");
+        const empty = document.getElementById("queries-empty");
+        const errorBox = document.getElementById("queries-error");
+        const list = document.getElementById("queries-list");
+
+        document.getElementById("modal-queries").classList.remove("hidden");
+        list.innerHTML = "";
+        empty.classList.add("hidden");
+        errorBox.classList.add("hidden");
+        loading.classList.remove("hidden");
+
+        try {
+          const response = await fetch("/api/v1/sample-queries");
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.detail || "Failed to load saved queries.");
+          }
+          const queries = await response.json();
+          loading.classList.add("hidden");
+
+          if (!queries.length) {
+            empty.classList.remove("hidden");
+            return;
+          }
+          renderSavedQueries(queries);
+        } catch (err) {
+          loading.classList.add("hidden");
+          errorBox.textContent = err.message;
+          errorBox.classList.remove("hidden");
+        }
+      }
+
+      // Render saved-query cards into the modal list.
+      function renderSavedQueries(queries) {
+        const list = document.getElementById("queries-list");
+        list.innerHTML = "";
+
+        queries.forEach((q) => {
+          const label = EMAIL_TYPE_LABELS[q.email_type] || q.email_type;
+          const badge = badgeStyleFor(q.email_type);
+
+          const card = document.createElement("div");
+          card.className =
+            "p-4 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-all";
+          card.onclick = () => selectQuery(q.query_text);
+
+          const badgeEl = document.createElement("span");
+          badgeEl.className =
+            "inline-block px-2 py-1 text-xs rounded mb-2 font-medium " + badge;
+          badgeEl.textContent = label;
+
+          const text = document.createElement("p");
+          text.className = "text-slate-700 text-sm";
+          text.textContent = q.query_text;
+
+          card.appendChild(badgeEl);
+          card.appendChild(text);
+          list.appendChild(card);
         });
-      } catch (err) {
-        // Saved-sample history is a convenience; a failed fetch just leaves
-        // the "generate a new sample" placeholder in place.
       }
-    }
 
-    emailTypeSelect.addEventListener("change", function () {
-      loadSavedSamples(emailTypeSelect.value);
-    });
-
-    savedSelect.addEventListener("change", function () {
-      if (!savedSelect.value) {
-        resultBox.hidden = true;
-        return;
+      function closeModal(id) {
+        document.getElementById(id).classList.add("hidden");
       }
-      const sample = savedSamples.find(function (item) {
-        return item.id === savedSelect.value;
-      });
-      if (sample) renderSample(sample);
-    });
 
-    generateBtn.addEventListener("click", async function () {
-      generateBtn.disabled = true;
-      const originalLabel = generateBtn.textContent;
-      generateBtn.textContent = "Generating…";
-      errorBox.hidden = true;
-      resultBox.hidden = true;
+      // Query Management
+      function selectQuery(text) {
+        document.getElementById("query-text").value = text;
+        closeModal("modal-queries");
+      }
 
-      try {
-        const response = await fetch(
-          "/api/v1/sample-queries/" + encodeURIComponent(emailTypeSelect.value),
-          { method: "POST" }
-        );
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.detail || "Failed to generate a sample query.");
+      // Generate a fresh sample query via the backend. The API generates,
+      // persists it (so it shows up under "Select Existing Query"), and
+      // returns the saved record — we load its query text into the textarea.
+      async function generateSampleQuery(btn) {
+        const type = document.getElementById("email-type").value;
+        if (!type) {
+          alert("Please select an email type first.");
+          return;
         }
 
-        savedSamples.unshift(data);
-        const option = document.createElement("option");
-        option.value = data.id;
-        option.textContent = sampleLabel(data);
-        savedSelect.insertBefore(option, savedSelect.options[1] || null);
-        savedSelect.value = data.id;
+        const trigger =
+          btn ||
+          (window.event && window.event.currentTarget) ||
+          document.querySelector('[onclick*="generateSampleQuery"]');
+        const originalHtml = trigger ? trigger.innerHTML : null;
+        if (trigger) {
+          trigger.disabled = true;
+          trigger.innerHTML =
+            '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Generating...';
+        }
 
-        renderSample(data);
-      } catch (err) {
-        showError(err.message);
-      } finally {
-        generateBtn.disabled = false;
-        generateBtn.textContent = originalLabel;
+        try {
+          const response = await fetch(
+            "/api/v1/sample-queries/" + encodeURIComponent(type),
+            { method: "POST" }
+          );
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.detail || "Failed to generate a sample query.");
+          }
+          document.getElementById("query-text").value = data.query_text;
+        } catch (err) {
+          alert(err.message);
+        } finally {
+          if (trigger) {
+            trigger.disabled = false;
+            trigger.innerHTML = originalHtml;
+          }
+        }
       }
-    });
 
-    draftBtn.addEventListener("click", function () {
-      draftStubNote.hidden = false;
-    });
+      function draftEmail() {
+        const query = document.getElementById("query-text").value;
+        if (!query.trim()) {
+          alert("Please select or generate a query first.");
+          return;
+        }
 
-    // Initial load for the default-selected email type.
-    loadSavedSamples(emailTypeSelect.value);
-  })();
-</script>
-{% endblock %}
+        const btn = document.getElementById("btn-draft");
+        btn.innerHTML =
+          '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Generating...';
+        btn.disabled = true;
+
+        // Simulate AI generating draft
+        setTimeout(() => {
+          document.getElementById("email-subject").value =
+            "Subject Generated by AI";
+          document.getElementById("email-body").value =
+            `Dear Client,\n\nI hope this email finds you well.\n\nBased on your query: "${query.substring(0, 30)}...", I am reaching out to discuss how our solutions can align with your goals.\n\nLet's schedule a brief call next week to explore this further.\n\nBest Regards,\n{{ user.full_name }}\nMailFlow Team`;
+
+          document
+            .getElementById("email-verification-section")
+            .classList.remove("hidden");
+          btn.innerHTML =
+            '<i class="fa-solid fa-check mr-2"></i> Generated successfully';
+          setTimeout(() => {
+            btn.innerHTML =
+              '<i class="fa-solid fa-pen mr-2"></i> Re-Draft Email Content';
+            btn.disabled = false;
+          }, 2000);
+        }, 1000);
+      }
+
+      function sendEmail() {
+        const to = document.getElementById("email-to").value;
+        const subject = document.getElementById("email-subject").value;
+        const body = document.getElementById("email-body").value;
+
+        if (!to || !subject || !body) {
+          alert("Please ensure To, Subject, and Body are filled.");
+          return;
+        }
+
+        // Show Loading Overlay simulating API call
+        const overlay = document.getElementById("loading-overlay");
+        overlay.classList.remove("hidden");
+
+        setTimeout(() => {
+          // Save to Tracking Data
+          const newEmail = {
+            id: Date.now(),
+            to: to,
+            subject: subject,
+            body: body,
+            date: new Date().toLocaleString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+            }),
+            status: "pending", // pending = No response yet
+          };
+
+          sentEmailsData.unshift(newEmail); // Add to top
+
+          // Reset Draft Form
+          document.getElementById("email-type").value = "";
+          document.getElementById("query-text").value = "";
+          document
+            .getElementById("email-verification-section")
+            .classList.add("hidden");
+
+          overlay.classList.add("hidden");
+
+          // Redirect to Tracking
+          switchTab("tracking");
+        }, 1500);
+      }
+
+      function renderTrackingTable() {
+        const tbody = document.getElementById("tracking-table-body");
+        const emptyState = document.getElementById("tracking-empty");
+
+        if (sentEmailsData.length === 0) {
+          tbody.innerHTML = "";
+          emptyState.classList.remove("hidden");
+          return;
+        }
+
+        emptyState.classList.add("hidden");
+        let html = "";
+
+        sentEmailsData.forEach((item) => {
+          const statusConfig =
+            item.status === "replied"
+              ? {
+                  color: "bg-green-100 text-green-700 border-green-200",
+                  text: "Response Received",
+                  icon: "fa-reply",
+                }
+              : {
+                  color: "bg-orange-100 text-orange-700 border-orange-200",
+                  text: "Awaiting Response",
+                  icon: "fa-clock",
+                };
+
+          html += `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="p-4 border-b border-slate-100 font-medium text-slate-800">${item.to}</td>
+                        <td class="p-4 border-b border-slate-100 text-slate-600 truncate max-w-[200px]">${item.subject}</td>
+                        <td class="p-4 border-b border-slate-100 text-slate-500 text-sm">${item.date}</td>
+                        <td class="p-4 border-b border-slate-100">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusConfig.color}">
+                                <i class="fa-solid ${statusConfig.icon} mr-1.5"></i> ${statusConfig.text}
+                            </span>
+                        </td>
+                        <td class="p-4 border-b border-slate-100 text-center">
+                            <button onclick="viewDetails(${item.id})" class="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-2 rounded-lg transition-colors" title="View Complete Details">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+        });
+        tbody.innerHTML = html;
+      }
+
+      function viewDetails(id) {
+        const email = sentEmailsData.find((e) => e.id === id);
+        if (email) {
+          document.getElementById("detail-to").innerText = email.to;
+          document.getElementById("detail-date").innerText = email.date;
+          document.getElementById("detail-subject").innerText = email.subject;
+          document.getElementById("detail-body").innerText = email.body;
+
+          const statusContainer = document.getElementById("detail-status");
+          if (email.status === "replied") {
+            statusContainer.className =
+              "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200";
+            statusContainer.innerHTML =
+              '<i class="fa-solid fa-check-circle mr-2"></i> Client has replied';
+          } else {
+            statusContainer.className =
+              "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 border border-orange-200";
+            statusContainer.innerHTML =
+              '<i class="fa-solid fa-clock mr-2"></i> No response yet';
+          }
+
+          document.getElementById("modal-details").classList.remove("hidden");
+        }
+      }
+
+      // Initialize App
+      switchTab("drafting");
+    </script>
+  </body>
+</html>
