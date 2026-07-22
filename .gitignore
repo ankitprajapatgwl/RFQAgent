@@ -8,3 +8,19 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets & local config
+.env
+
+# Runtime data (SQLite database, generated artifacts)
+data/
+*.db
+
+# OS / editor noise
+.DS_Store
+.idea/

@@ -1,0 +1,54 @@
+"""SQLAlchemy ORM models for the authentication feature.
+
+These are the persistence-layer representations of domain entities. Pydantic
+schemas (see :mod:`src.domain.schemas`) are the API contracts; this module
+is strictly about how entities are stored.
+"""
+
+import uuid
+from datetime import UTC, datetime
+
+from sqlalchemy import DateTime, String, Uuid
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+from src.domain.enums import UserRole
+
+
+def _utcnow() -> datetime:
+    """Return the current timezone-aware UTC timestamp."""
+    return datetime.now(UTC)
+
+
+class Base(DeclarativeBase):
+    """Declarative base class shared by all ORM models."""
+
+
+class User(Base):
+    """A registered application user.
+
+    Attributes:
+        id: Surrogate primary key, a randomly generated UUID.
+        email: Unique, case-insensitive login identifier.
+        full_name: Display name of the user.
+        hashed_password: Bcrypt hash of the user's password. The plaintext
+            password is never stored.
+        role: Authorisation role for the account.
+        is_active: Whether the account may authenticate.
+        created_at: UTC timestamp when the account was created.
+    """
+
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
+    full_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[UserRole] = mapped_column(String(20), default=UserRole.BUYER, nullable=False)
+    is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+
+    def __repr__(self) -> str:
+        """Return an unambiguous representation for debugging/logs."""
+        return f"<User id={self.id} email={self.email!r} role={self.role}>"

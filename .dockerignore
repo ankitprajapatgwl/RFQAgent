@@ -1,0 +1,33 @@
+# Version control & CI
+.git
+.github
+
+# Python caches / build artifacts
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv
+venv
+
+# Local runtime data & secrets
+data/
+*.db
+.env
+
+# Editor / OS noise
+.vscode/
+.idea/
+.DS_Store
+
+# Docs not needed inside the image
+coding_standards_documents/
+*.md
+!README.md

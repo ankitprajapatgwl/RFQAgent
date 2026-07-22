@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Create account · RFQ Agent{% endblock %}
+{% block subtitle %}<p class="card__subtitle">Create your account</p>{% endblock %}
+{% block content %}
+  {% if error %}
+    <div class="alert alert--error">{{ error }}</div>
+  {% endif %}
+  <form method="post" action="/register" class="form">
+    <label class="field">
+      <span class="field__label">Full name</span>
+      <input class="field__input" type="text" name="full_name" value="{{ full_name }}"
+             placeholder="Ada Lovelace" required autofocus />
+    </label>
+    <label class="field">
+      <span class="field__label">Email</span>
+      <input class="field__input" type="email" name="email" value="{{ email }}"
+             placeholder="you@company.com" required />
+    </label>
+    <label class="field">
+      <span class="field__label">Password</span>
+      <input class="field__input" type="password" name="password"
+             placeholder="At least 8 characters" minlength="8" maxlength="72" required />
+      <span class="field__hint">8–72 characters.</span>
+    </label>
+    <button class="btn btn--primary" type="submit">Create account</button>
+  </form>
+  <p class="switch">Already have an account? <a href="/login">Sign in</a></p>
+{% endblock %}

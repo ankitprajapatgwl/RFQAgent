@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · RFQ Agent{% endblock %}
+{% block subtitle %}<p class="card__subtitle">You're signed in</p>{% endblock %}
+{% block content %}
+  <div class="welcome">
+    <div class="avatar">{{ user.full_name[0] | upper }}</div>
+    <h1 class="welcome__name">Welcome, {{ user.full_name }}</h1>
+    <p class="welcome__email">{{ user.email }}</p>
+  </div>
+  <dl class="details">
+    <div class="details__row"><dt>User ID</dt><dd>{{ user.id }}</dd></div>
+    <div class="details__row"><dt>Role</dt><dd>{{ user.role.value }}</dd></div>
+    <div class="details__row"><dt>Status</dt><dd>{{ 'Active' if user.is_active else 'Inactive' }}</dd></div>
+    <div class="details__row"><dt>Member since</dt><dd>{{ user.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd></div>
+  </dl>
+  <a class="btn btn--secondary" href="/logout">Sign out</a>
+{% endblock %}

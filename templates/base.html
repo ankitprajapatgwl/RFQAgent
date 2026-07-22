@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}RFQ Agent{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}" />
+</head>
+<body>
+  <main class="page">
+    <div class="card">
+      <header class="card__header">
+        <div class="brand">RFQ<span>Agent</span></div>
+        {% block subtitle %}{% endblock %}
+      </header>
+      {% block content %}{% endblock %}
+    </div>
+    <footer class="footnote">RFQ Agent · Authentication Service</footer>
+  </main>
+</body>
+</html>

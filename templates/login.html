@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Sign in · RFQ Agent{% endblock %}
+{% block subtitle %}<p class="card__subtitle">Sign in to your account</p>{% endblock %}
+{% block content %}
+  {% if request.query_params.get('registered') %}
+    <div class="alert alert--success">Account created. Please sign in.</div>
+  {% endif %}
+  {% if error %}
+    <div class="alert alert--error">{{ error }}</div>
+  {% endif %}
+  <form method="post" action="/login" class="form">
+    <label class="field">
+      <span class="field__label">Email</span>
+      <input class="field__input" type="email" name="email" value="{{ email }}"
+             placeholder="you@company.com" required autofocus />
+    </label>
+    <label class="field">
+      <span class="field__label">Password</span>
+      <input class="field__input" type="password" name="password"
+             placeholder="Your password" required />
+    </label>
+    <button class="btn btn--primary" type="submit">Sign in</button>
+  </form>
+  <p class="switch">Don't have an account? <a href="/register">Create one</a></p>
+{% endblock %}

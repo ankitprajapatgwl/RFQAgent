@@ -1,0 +1,48 @@
+# ---------------------------------------------------------------------------
+# RFQ Agent — local orchestration: FastAPI app + PostgreSQL.
+# Values fall back to sensible defaults, so `make docker-up` works with no
+# `.env` file. Override any value by exporting it or placing it in `.env`.
+# ---------------------------------------------------------------------------
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: rfq_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rfq}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rfq}
+      POSTGRES_DB: ${POSTGRES_DB:-rfq}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # The database is reachable by the app over the internal compose network as
+    # host `db`. It is intentionally NOT published to the host to avoid clashing
+    # with a local PostgreSQL. To inspect it from the host, uncomment:
+    # ports:
+    #   - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rfq} -d ${POSTGRES_DB:-rfq}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: rfq_app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DEBUG: "false"
+      HOST: 0.0.0.0
+      PORT: "8000"
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-rfq}:${POSTGRES_PASSWORD:-rfq}@db:5432/${POSTGRES_DB:-rfq}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production-please-use-a-long-random-value}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
