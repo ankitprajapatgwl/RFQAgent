@@ -79,6 +79,7 @@ class UserRepository:
         full_name: str,
         hashed_password: str,
         role: UserRole = UserRole.BUYER,
+        phone_number: str | None = None,
         sending_email: str | None = None,
     ) -> User:
         """Persist a new user and return the managed instance.
@@ -92,17 +93,21 @@ class UserRepository:
             full_name: Display name.
             hashed_password: Pre-hashed password digest.
             role: Authorisation role, defaulting to ``BUYER``.
+            phone_number: Optional contact phone number (stored verbatim, only
+                trimmed). Never verified.
             sending_email: Permanent unique outbound address, or ``None`` when
                 no email-sending domain is configured. Stored normalised.
 
         Returns:
             The newly created, flushed :class:`User` with its ``id`` populated.
         """
+        phone = phone_number.strip() if phone_number else None
         user = User(
             email=self._normalize_email(email),
             full_name=full_name,
             hashed_password=hashed_password,
             role=role,
+            phone_number=phone or None,
             sending_email=self._normalize_email(sending_email) if sending_email else None,
         )
         self._session.add(user)

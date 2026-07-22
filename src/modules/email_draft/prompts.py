@@ -64,7 +64,11 @@ are present; omit any that are blank.
 
 
 def _build_sender_context(
-    sender_name: str, sender_email: str, sender_role: str, company_name: str
+    sender_name: str,
+    sender_email: str,
+    sender_role: str,
+    company_name: str,
+    sender_phone: str,
 ) -> str:
     """Render the sender's real profile into a sign-off instruction block.
 
@@ -73,6 +77,7 @@ def _build_sender_context(
         sender_email: The user's email address.
         sender_role: The user's role (e.g. buyer), if meaningful.
         company_name: The user's company/organisation name, if known.
+        sender_phone: The user's contact phone number, if provided.
 
     Returns:
         The formatted sender context block, or ``""`` when no details are set
@@ -81,6 +86,7 @@ def _build_sender_context(
     fields = [
         ("Name", sender_name),
         ("Email", sender_email),
+        ("Phone", sender_phone),
         ("Role", sender_role),
         ("Company", company_name),
     ]
@@ -98,6 +104,7 @@ def build_prompts(
     sender_email: str = "",
     sender_role: str = "",
     company_name: str = "",
+    sender_phone: str = "",
 ) -> tuple[str, str]:
     """Build the system and user prompts for a drafting call.
 
@@ -108,6 +115,8 @@ def build_prompts(
         sender_email: The signed-in user's email, used in the sign-off.
         sender_role: The signed-in user's role, used in the sign-off if set.
         company_name: The sender's company/organisation, used in the sign-off.
+        sender_phone: The signed-in user's phone number, used in the sign-off
+            so the drafted "Best regards" block carries a real contact number.
 
     Returns:
         A ``(system_prompt, user_prompt)`` pair. Unlike sample-query
@@ -119,7 +128,9 @@ def build_prompts(
     extra_context = ""
     if email_type is EmailType.RFQ:
         extra_context = _RFQ_EXTRA_TEMPLATE.format(rfq_fields_text=read_rfq_fields())
-    extra_context += _build_sender_context(sender_name, sender_email, sender_role, company_name)
+    extra_context += _build_sender_context(
+        sender_name, sender_email, sender_role, company_name, sender_phone
+    )
 
     system_prompt = _SYSTEM_PROMPT_TEMPLATE.format(
         label=EMAIL_TYPE_LABELS[email_type],

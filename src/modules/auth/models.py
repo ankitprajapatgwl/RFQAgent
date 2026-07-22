@@ -31,6 +31,9 @@ class User(Base):
             password is never stored.
         role: Authorisation role for the account.
         is_active: Whether the account may authenticate.
+        phone_number: Optional contact phone number captured at registration
+            (never verified). Surfaced in the "Best regards" sign-off of
+            outbound emails so suppliers can reach the buyer directly.
         sending_email: The user's permanent, unique outbound address
             (``{CamelCaseName}@{outbound_domain}``), assigned once at
             registration when an email-sending domain is configured. It is
@@ -49,6 +52,7 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[UserRole] = mapped_column(String(20), default=UserRole.BUYER, nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    phone_number: Mapped[str | None] = mapped_column(String(32), nullable=True)
     sending_email: Mapped[str | None] = mapped_column(
         String(320), unique=True, index=True, nullable=True
     )

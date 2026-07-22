@@ -25,11 +25,19 @@ class UserCreate(BaseModel):
         email: Unique email address used as the login identifier.
         full_name: Display name of the user.
         password: Plaintext password (validated for length, never stored).
+        phone_number: Optional contact phone number (never verified); shown in
+            the "Best regards" sign-off of outbound emails.
+        sending_email: The outbound address the user confirmed at registration.
+            Only its local part is honoured — the service always re-anchors it
+            to the configured outbound domain. ``None`` lets the service derive
+            one from the email's local part.
     """
 
     email: EmailStr
     full_name: str = Field(min_length=1, max_length=120)
     password: str = Field(min_length=_PASSWORD_MIN, max_length=_PASSWORD_MAX)
+    phone_number: str | None = Field(default=None, max_length=32)
+    sending_email: str | None = Field(default=None, max_length=320)
 
 
 class UserRead(BaseModel):
@@ -46,6 +54,7 @@ class UserRead(BaseModel):
     full_name: str
     role: UserRole
     is_active: bool
+    phone_number: str | None = None
     sending_email: str | None = None
     created_at: datetime
 
@@ -88,3 +97,23 @@ class TokenPayload(BaseModel):
     sub: str
     email: EmailStr
     exp: int
+
+
+class SendingEmailAvailability(BaseModel):
+    """Output contract for the sending-email availability check.
+
+    Backs the registration form's live "is this address free?" hint and the
+    suggestion it prefills. ``available`` is ``False`` when the address is
+    already taken by another user.
+
+    Attributes:
+        sending_email: The fully qualified address that was checked (local part
+            re-anchored to the configured outbound domain).
+        available: Whether the address is free to claim.
+        configured: Whether an outbound domain is configured at all; when
+            ``False`` the app runs without per-user sending addresses.
+    """
+
+    sending_email: str | None
+    available: bool
+    configured: bool

@@ -19,8 +19,8 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from sqlalchemy import Engine, create_engine
-from sqlalchemy.exc import OperationalError
+from sqlalchemy import Engine, create_engine, inspect, text
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from src.config import Settings, get_settings
@@ -37,6 +37,16 @@ class Base(DeclarativeBase):
 # gets a timeout and a bounded retry policy).
 _MAX_CONNECT_RETRIES = 10
 _RETRY_BACKOFF_SECONDS = 2.0
+
+# Additive columns introduced after the initial schema shipped. ``create_all``
+# only creates missing *tables*, never new columns on an existing one, and this
+# project carries no Alembic setup — so a plain SQLite/Postgres ``ADD COLUMN``
+# (portable, nullable, no default) is applied idempotently at startup. Each
+# entry is ``table -> {column: column_type_ddl}``; extend it when a nullable
+# column is added to a model that may already exist in a deployed database.
+_ADDITIVE_COLUMNS: dict[str, dict[str, str]] = {
+    "users": {"phone_number": "VARCHAR(32)"},
+}
 
 
 class Database:
@@ -92,6 +102,7 @@ class Database:
         for attempt in range(1, _MAX_CONNECT_RETRIES + 1):
             try:
                 Base.metadata.create_all(self._engine)
+                self._apply_additive_columns()
                 logger.info("Database schema ready (attempt %d).", attempt)
                 return
             except OperationalError as exc:  # pragma: no cover - timing dependent
@@ -106,6 +117,34 @@ class Database:
         assert last_error is not None
         logger.error("Database unreachable after %d attempts.", _MAX_CONNECT_RETRIES)
         raise last_error
+
+    def _apply_additive_columns(self) -> None:
+        """Add any nullable columns from :data:`_ADDITIVE_COLUMNS` that are missing.
+
+        A tiny, forward-only migration step covering the one thing
+        ``create_all`` cannot do — add a column to a table that already exists
+        in a deployed database. Only additive, nullable columns are handled, so
+        the statement is safe to run on every startup and a no-op once applied.
+        Missing tables are skipped (``create_all`` will have just made them with
+        the column already present).
+        """
+        inspector = inspect(self._engine)
+        existing_tables = set(inspector.get_table_names())
+        for table, columns in _ADDITIVE_COLUMNS.items():
+            if table not in existing_tables:
+                continue
+            present = {col["name"] for col in inspector.get_columns(table)}
+            for column, ddl_type in columns.items():
+                if column in present:
+                    continue
+                try:
+                    with self._engine.begin() as connection:
+                        connection.execute(
+                            text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl_type}")
+                        )
+                    logger.info("Added missing column %s.%s.", table, column)
+                except SQLAlchemyError as exc:  # pragma: no cover - defensive
+                    logger.error("Could not add column %s.%s: %s", table, column, exc)
 
     @contextmanager
     def session(self) -> Iterator[Session]:

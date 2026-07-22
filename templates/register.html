@@ -5,7 +5,7 @@
   {% if error %}
     <div class="alert alert--error">{{ error }}</div>
   {% endif %}
-  <form method="post" action="/register" class="form">
+  <form method="post" action="/register" class="form" id="register-form">
     <label class="field">
       <span class="field__label">Full name</span>
       <input class="field__input" type="text" name="full_name" value="{{ full_name }}"
@@ -13,16 +13,141 @@
     </label>
     <label class="field">
       <span class="field__label">Email</span>
-      <input class="field__input" type="email" name="email" value="{{ email }}"
+      <input class="field__input" id="reg-email" type="email" name="email" value="{{ email }}"
              placeholder="you@company.com" required />
     </label>
+    <label class="field">
+      <span class="field__label">Phone number</span>
+      <input class="field__input" type="tel" name="phone_number" value="{{ phone_number }}"
+             placeholder="+1 555 123 4567" maxlength="32" />
+      <span class="field__hint">Optional. Shown in your email sign-off so suppliers can reach you.</span>
+    </label>
+    {% if outbound_domain %}
+    <label class="field">
+      <span class="field__label">Sending email</span>
+      <span class="sending-email">
+        <input class="field__input sending-email__local" id="sending-local" type="text"
+               name="sending_email" value="{{ sending_email }}" placeholder="you" autocomplete="off" />
+        <span class="sending-email__domain">@{{ outbound_domain }}</span>
+      </span>
+      <span class="field__hint" id="sending-hint">This is the address your emails are sent from. Confirm or edit it.</span>
+    </label>
+    {% endif %}
     <label class="field">
       <span class="field__label">Password</span>
       <input class="field__input" type="password" name="password"
              placeholder="At least 8 characters" minlength="8" maxlength="72" required />
       <span class="field__hint">8–72 characters.</span>
     </label>
-    <button class="btn btn--primary" type="submit">Create account</button>
+    <button class="btn btn--primary" type="submit" id="register-submit">Create account</button>
   </form>
   <p class="switch">Already have an account? <a href="/login">Sign in</a></p>
+
+  {% if outbound_domain %}
+  <style>
+    .sending-email { display: flex; align-items: stretch; gap: 0; }
+    .sending-email__local { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+    .sending-email__domain {
+      display: inline-flex; align-items: center; padding: 0 0.6rem;
+      background: #f1f5f9; border: 1px solid #cbd5e1; border-left: none;
+      border-top-right-radius: 6px; border-bottom-right-radius: 6px;
+      color: #475569; font-size: 0.85rem; white-space: nowrap;
+    }
+    .field__hint--ok { color: #15803d; }
+    .field__hint--bad { color: #b91c1c; }
+  </style>
+  <script>
+    (function () {
+      const emailInput = document.getElementById("reg-email");
+      const localInput = document.getElementById("sending-local");
+      const hint = document.getElementById("sending-hint");
+      const submitBtn = document.getElementById("register-submit");
+      const form = document.getElementById("register-form");
+      // Once the user edits the sending address by hand, stop auto-syncing it
+      // from the email field so their choice is respected.
+      let manuallyEdited = Boolean(localInput.value);
+      let available = true;
+      let checkTimer = null;
+
+      // Keep only characters valid in our sending-address local part.
+      function sanitizeLocal(value) {
+        return (value || "")
+          .split("@")[0]
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9._+-]+/g, "")
+          .replace(/^[._+-]+|[._+-]+$/g, "");
+      }
+
+      function setHint(text, cls) {
+        hint.textContent = text;
+        hint.classList.remove("field__hint--ok", "field__hint--bad");
+        if (cls) hint.classList.add(cls);
+      }
+
+      async function checkAvailability() {
+        const local = sanitizeLocal(localInput.value);
+        if (!local) {
+          available = true;
+          setHint("Enter a sending address.", null);
+          return;
+        }
+        setHint("Checking availability…", null);
+        try {
+          const resp = await fetch(
+            "/api/v1/auth/sending-email/availability?sending_email=" +
+              encodeURIComponent(local)
+          );
+          const data = await resp.json();
+          if (!resp.ok) throw new Error("check failed");
+          available = data.available;
+          if (data.available) {
+            setHint("✓ " + data.sending_email + " is available.", "field__hint--ok");
+          } else {
+            setHint(
+              "✕ " + data.sending_email + " is already in use. Please choose another.",
+              "field__hint--bad"
+            );
+          }
+        } catch (err) {
+          // Network hiccup — don't block the user; the server re-checks on submit.
+          available = true;
+          setHint("Confirm or edit your sending address.", null);
+        }
+      }
+
+      function scheduleCheck() {
+        if (checkTimer) clearTimeout(checkTimer);
+        checkTimer = setTimeout(checkAvailability, 350);
+      }
+
+      function syncFromEmail() {
+        if (manuallyEdited) return;
+        localInput.value = sanitizeLocal(emailInput.value);
+        scheduleCheck();
+      }
+
+      emailInput.addEventListener("input", syncFromEmail);
+      localInput.addEventListener("input", function () {
+        manuallyEdited = true;
+        scheduleCheck();
+      });
+
+      // Prefill on load if the local part is empty but an email is present.
+      if (!localInput.value && emailInput.value) syncFromEmail();
+      else if (localInput.value) scheduleCheck();
+
+      form.addEventListener("submit", function (e) {
+        if (!available) {
+          e.preventDefault();
+          setHint(
+            "That sending address is already in use. Please choose another.",
+            "field__hint--bad"
+          );
+          localInput.focus();
+        }
+      });
+    })();
+  </script>
+  {% endif %}
 {% endblock %}

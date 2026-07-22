@@ -190,6 +190,7 @@ class EmailMaster(ABC):
         product_name: str,
         quantity: int,
         target_price: str,
+        sender_phone: str = "",
     ) -> str:
         """Render the inline-styled HTML body of a standalone RFQ email.
 
@@ -205,11 +206,15 @@ class EmailMaster(ABC):
             product_name: Product being quoted.
             quantity: Number of units requested.
             target_price: Buyer's target unit price, e.g. ``"$12.00"``.
+            sender_phone: The buyer's contact phone number; appended to the
+                "Best regards" sign-off when provided.
 
         Returns:
             A complete HTML fragment ready to use as the email body.
         """
         company = self.company_name
+        phone = (sender_phone or "").strip()
+        phone_line = f"<br>{html.escape(phone)}" if phone else ""
         parts = [
             '<div style="font-family: Arial, sans-serif; max-width: 600px;">',
             f'<img src="https://placehold.co/320x40/blue/white?text={company}" '
@@ -234,7 +239,7 @@ class EmailMaster(ABC):
             "<li>Product specifications and certifications</li>",
             "</ul>",
             "<p>We look forward to your response within 3 business days.</p>",
-            f"<p>Best regards,<br><strong>{company} Sourcing Team</strong></p>",
+            f"<p>Best regards,<br><strong>{company} Sourcing Team</strong>{phone_line}</p>",
             self._reference_footer(user_id, conv_id),
             "</div>",
         ]

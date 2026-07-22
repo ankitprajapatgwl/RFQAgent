@@ -33,6 +33,7 @@ from fastapi import Request
 
 from src.config import Settings
 from src.modules.auth.models import User
+from src.modules.email_delivery.attachments import RawAttachment, store_attachments
 from src.modules.email_delivery.enums import (
     ConversationStatus,
     EmailDirection,
@@ -48,6 +49,7 @@ from src.modules.email_delivery.exceptions import (
 )
 from src.modules.email_delivery.models import Conversation
 from src.modules.email_delivery.providers import EmailMaster, EmailProviderFactory
+from src.modules.email_delivery.reply_extraction import extract_reply_html, extract_reply_text
 from src.modules.email_delivery.repository import EmailDeliveryRepository
 from src.modules.email_delivery.webhooks import (
     InboundEmail,
@@ -194,6 +196,7 @@ class EmailDeliveryService:
         recipient_name: str,
         subject: str,
         body_text: str,
+        attachments: list[RawAttachment] | None = None,
         provider_name: str | None = None,
     ) -> Conversation:
         """Open a conversation and send a human-verified draft.
@@ -211,6 +214,8 @@ class EmailDeliveryService:
             recipient_name: Supplier display name.
             subject: The verified subject.
             body_text: The verified plain-text body.
+            attachments: Optional files the user attached to the draft; they
+                are transmitted with the email and persisted to local storage.
             provider_name: Provider key; defaults to the configured provider.
 
         Returns:
@@ -242,8 +247,9 @@ class EmailDeliveryService:
             html_body=html_body,
             text_body=body_text,
             reply_to=conversation.reply_to_address,
+            attachments=self._provider_attachments(attachments),
         )
-        self._repository.add_email(
+        email = self._repository.add_email(
             conversation_id=conversation.id,
             direction=EmailDirection.SENT,
             from_email=from_email,
@@ -255,6 +261,7 @@ class EmailDeliveryService:
             provider_message_id=result.get("provider_message_id"),
             status_code=result.get("status_code"),
         )
+        self._persist_sent_attachments(conversation.token, email.id, attachments)
         logger.info("Sent draft on conversation %s to %s", conversation.token, recipient)
         return conversation
 
@@ -271,6 +278,8 @@ class EmailDeliveryService:
         product_name: str,
         quantity: int,
         target_price: str,
+        sender_phone: str = "",
+        attachments: list[RawAttachment] | None = None,
         provider_name: str | None = None,
     ) -> Conversation:
         """Open a conversation and send a template-rendered RFQ email.
@@ -284,6 +293,9 @@ class EmailDeliveryService:
             product_name: Product being quoted.
             quantity: Number of units requested.
             target_price: Buyer's target unit price.
+            sender_phone: The buyer's phone number, added to the RFQ sign-off.
+            attachments: Optional files to send with the RFQ (e.g. a quotation
+                form); transmitted with the email and persisted to local storage.
             provider_name: Provider key; defaults to the configured provider.
 
         Returns:
@@ -312,6 +324,7 @@ class EmailDeliveryService:
             product_name=product_name,
             quantity=quantity,
             target_price=target_price,
+            sender_phone=sender_phone,
         )
         from_email = sender_email or provider.build_sending_email(user_name)
         result = provider.send_email(
@@ -322,9 +335,10 @@ class EmailDeliveryService:
             subject=subject,
             html_body=html_body,
             reply_to=conversation.reply_to_address,
+            attachments=self._provider_attachments(attachments),
         )
         self._repository.update_conversation(conversation, subject=subject)
-        self._repository.add_email(
+        email = self._repository.add_email(
             conversation_id=conversation.id,
             direction=EmailDirection.SENT,
             from_email=from_email,
@@ -335,8 +349,51 @@ class EmailDeliveryService:
             provider_message_id=result.get("provider_message_id"),
             status_code=result.get("status_code"),
         )
+        self._persist_sent_attachments(conversation.token, email.id, attachments)
         logger.info("Sent RFQ on conversation %s to %s", conversation.token, supplier_email)
         return conversation
+
+    @staticmethod
+    def _provider_attachments(
+        attachments: list[RawAttachment] | None,
+    ) -> list[dict[str, Any]] | None:
+        """Convert in-memory attachments to the provider ``send_email`` shape.
+
+        Args:
+            attachments: The attachments to transmit, if any.
+
+        Returns:
+            A list of ``{filename, content, content_type}`` dicts, or ``None``
+            when there are no attachments (so the provider payload stays clean).
+        """
+        if not attachments:
+            return None
+        return [
+            {
+                "filename": att.filename,
+                "content": att.content,
+                "content_type": att.content_type,
+            }
+            for att in attachments
+        ]
+
+    def _persist_sent_attachments(
+        self, conv_id: str, email_id: uuid.UUID, attachments: list[RawAttachment] | None
+    ) -> None:
+        """Write outbound attachments to local storage and record their rows.
+
+        Mirrors the inbound path so files a user attaches to a draft/RFQ show
+        up in the conversation thread and survive a reload.
+
+        Args:
+            conv_id: The conversation token (used in the on-disk filename).
+            email_id: The sent email row the attachments belong to.
+            attachments: The attachments to persist, if any.
+        """
+        if not attachments:
+            return
+        metas = store_attachments(self._settings, conv_id, attachments)
+        self._repository.add_attachments(email_id=email_id, metas=metas)
 
     # ── Read-side passthroughs ────────────────────────────────────────────
 
@@ -351,6 +408,52 @@ class EmailDeliveryService:
         return self._repository.get_detail_for_user(
             user_id=user_id, conversation_id=conversation_id
         )
+
+    def delete_conversation(self, *, user_id: uuid.UUID, conversation_id: uuid.UUID) -> bool:
+        """Delete one owned conversation from the dispatch history.
+
+        Removes the conversation and its whole thread (emails + attachment
+        rows, via the ORM cascade) and deletes the backing attachment files
+        from local storage so nothing is orphaned on disk.
+
+        Args:
+            user_id: The requesting user's id (owns the conversation).
+            conversation_id: The conversation to delete.
+
+        Returns:
+            ``True`` if a conversation was deleted, ``False`` if none matched
+            this user.
+        """
+        urls = self._repository.delete_conversation(
+            user_id=user_id, conversation_id=conversation_id
+        )
+        if urls is None:
+            return False
+        self._remove_attachment_files(urls)
+        logger.info("Deleted conversation %s for user %s", conversation_id, user_id)
+        return True
+
+    def _remove_attachment_files(self, urls: list[str]) -> None:
+        """Best-effort delete of stored attachment files behind their URLs.
+
+        Each URL is ``{attachments_url_path}/{name}``; only its basename is
+        used to locate the file under :attr:`Settings.attachments_dir`, so a
+        crafted URL can never escape that directory. A missing or unremovable
+        file is logged and skipped — DB rows are already gone by this point.
+
+        Args:
+            urls: Served attachment URLs from the deleted conversation.
+        """
+        directory = self._settings.attachments_dir
+        for url in urls:
+            name = (url or "").rsplit("/", 1)[-1]
+            if not name:
+                continue
+            path = directory / name
+            try:
+                path.unlink(missing_ok=True)
+            except OSError as exc:  # pragma: no cover - defensive
+                logger.error("Could not delete attachment file %s: %s", name, exc)
 
     # ── Inbound ────────────────────────────────────────────────────────────
 
@@ -444,17 +547,23 @@ class EmailDeliveryService:
 
         logger.info("Matched inbound -> user=%s conv=%s", conversation.user_id, conv_id)
 
+        # Persist only the newly written portion of the reply — the quoted
+        # prior conversation is stripped so storage and the thread view carry
+        # just what the supplier actually typed this time.
+        reply_text = extract_reply_text(inbound.body_text)
+        reply_html = extract_reply_html(inbound.body_html)
+
         # Classify first so a decline flips the conversation status before the
         # reply bookkeeping (which never downgrades a declined conversation).
-        action = self._classify_reply(conversation, inbound.body_text)
+        action = self._classify_reply(conversation, reply_text)
         email = self._repository.add_email(
             conversation_id=conversation.id,
             direction=EmailDirection.RECEIVED,
             from_email=inbound.from_email,
             to_email=inbound.to_email,
             subject=inbound.subject,
-            body_text=inbound.body_text,
-            body_html=inbound.body_html,
+            body_text=reply_text,
+            body_html=reply_html,
             provider=inbound.provider,
             provider_message_id=inbound.provider_message_id or None,
             inbound_type=self._detect_inbound_type(inbound.subject).value,

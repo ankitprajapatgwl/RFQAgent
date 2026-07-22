@@ -8,6 +8,7 @@ driven directly from a unit test with in-memory fakes.
 
 from __future__ import annotations
 
+import re
 import uuid
 
 from src.config import Settings
@@ -16,6 +17,7 @@ from src.modules.auth.exceptions import (
     InactiveUserError,
     InvalidCredentialsError,
     InvalidTokenError,
+    SendingEmailAlreadyInUseError,
 )
 from src.modules.auth.models import User
 from src.modules.auth.password_hasher import PasswordHasher
@@ -26,10 +28,10 @@ from src.observability import get_logger
 
 logger = get_logger(__name__)
 
-# Upper bound on the numeric suffix tried when a user's derived sending
-# address collides with an existing one (two users with the same display
-# name). Far more than enough in practice; guards against an infinite loop.
-_MAX_SENDING_EMAIL_ATTEMPTS = 1000
+# Characters kept in a derived/confirmed sending-email local part. Anything
+# else (spaces, ``@`` from a pasted full address, exotic punctuation) is
+# dropped so the result is always a safe, single-label local part.
+_LOCAL_PART_ALLOWED = re.compile(r"[^a-z0-9._+-]+")
 
 # A pre-computed hash of a throwaway value. Verifying against it when a user is
 # not found makes failed logins take roughly the same time whether the email
@@ -73,6 +75,14 @@ class AuthService:
     def register(self, payload: UserCreate) -> User:
         """Register a new user account.
 
+        The outbound ``sending_email`` is taken from the address the user
+        confirmed on the form (``payload.sending_email``) when present, else
+        derived from their login email's local part; either way it is
+        re-anchored to the configured outbound domain and must be globally
+        unique. Unlike the old auto-suffixing behaviour, a collision is now
+        surfaced to the user (per the registration flow) rather than silently
+        resolved.
+
         Args:
             payload: Validated registration data.
 
@@ -81,53 +91,105 @@ class AuthService:
 
         Raises:
             EmailAlreadyRegisteredError: If the email is already in use.
+            SendingEmailAlreadyInUseError: If the resolved ``sending_email`` is
+                already claimed by another account.
         """
         if self._repository.get_by_email(payload.email) is not None:
             logger.info("Registration blocked: email already registered.")
             raise EmailAlreadyRegisteredError("An account with this email already exists.")
+
+        sending_email = self._resolve_sending_email(payload.sending_email, payload.email)
+        if (
+            sending_email is not None
+            and self._repository.get_by_sending_email(sending_email) is not None
+        ):
+            logger.info("Registration blocked: sending_email already in use.")
+            raise SendingEmailAlreadyInUseError(
+                f"The sending address '{sending_email}' is already in use. "
+                "Please choose another."
+            )
 
         hashed = self._hasher.hash(payload.password)
         user = self._repository.create(
             email=payload.email,
             full_name=payload.full_name,
             hashed_password=hashed,
-            sending_email=self._assign_sending_email(payload.full_name),
+            phone_number=payload.phone_number,
+            sending_email=sending_email,
         )
         logger.info("Registered new user id=%s (sending_email=%s).", user.id, user.sending_email)
         return user
 
-    def _assign_sending_email(self, full_name: str) -> str | None:
-        """Derive a unique permanent outbound address for a new user.
+    def suggest_sending_email(self, email: str) -> str | None:
+        """Return the default outbound address derived from a login email.
 
-        The local part is the user's display name in CamelCase (matching the
-        email-delivery module's ``build_sending_email``), combined with the
-        configured default outbound domain. If two users share a display name,
-        an incrementing numeric suffix keeps the address unique. Returns
-        ``None`` when no settings/sending domain is configured — the app then
-        runs without new-thread inbound matching, which is acceptable.
+        The local part before ``@`` in ``email`` is combined with the
+        configured outbound domain (per the active provider). Returns ``None``
+        when no outbound domain is configured. Does **not** check uniqueness —
+        that is :meth:`is_sending_email_available` / the registration guard.
 
         Args:
-            full_name: The registering user's display name.
+            email: The user's login email address.
 
         Returns:
-            A unique sending address, or ``None`` if unconfigured.
+            The suggested ``{local}@{domain}`` address, or ``None``.
+        """
+        return self._resolve_sending_email(None, email)
+
+    def is_sending_email_available(self, sending_email: str) -> bool:
+        """Return whether a resolved sending address is free to claim.
+
+        Args:
+            sending_email: The fully qualified address to check.
+
+        Returns:
+            ``True`` if no existing user holds this address.
+        """
+        return self._repository.get_by_sending_email(sending_email) is None
+
+    def _resolve_sending_email(self, chosen: str | None, email: str) -> str | None:
+        """Resolve the outbound address to store for a registering user.
+
+        The local part is taken from ``chosen`` when the user supplied/edited
+        one, otherwise from ``email``; it is sanitised and re-anchored to the
+        configured outbound domain so a user can never point their sending
+        address at a domain the app does not control. Returns ``None`` when no
+        settings/outbound domain is configured (the app then runs without
+        per-user sending addresses / new-thread inbound matching).
+
+        Args:
+            chosen: The address the user confirmed on the form, if any.
+            email: The user's login email, used as the fallback source of the
+                local part.
+
+        Returns:
+            A fully qualified ``{local}@{domain}`` address, or ``None``.
         """
         if self._settings is None:
             return None
         domain = self._settings.default_outbound_domain
         if not domain:
             return None
+        local = self._sanitize_local_part(chosen or email)
+        return f"{local}@{domain}"
 
-        local = "".join(word.capitalize() for word in full_name.split()) or "User"
-        candidate = f"{local}@{domain}"
-        for suffix in range(1, _MAX_SENDING_EMAIL_ATTEMPTS):
-            if self._repository.get_by_sending_email(candidate) is None:
-                return candidate
-            candidate = f"{local}{suffix}@{domain}"
-        # Exhausted every suffix (astronomically unlikely) — leave it unset
-        # rather than block registration on an addressing edge case.
-        logger.warning("Could not derive a unique sending_email for %r.", full_name)
-        return None
+    @staticmethod
+    def _sanitize_local_part(value: str) -> str:
+        """Extract and clean the local part from an email or bare local part.
+
+        Everything after the first ``@`` is discarded, the result is lowercased
+        and stripped of characters outside ``[a-z0-9._+-]``. Falls back to
+        ``"user"`` if nothing usable remains.
+
+        Args:
+            value: A full email address or a bare local part.
+
+        Returns:
+            A safe, non-empty local part.
+        """
+        local = (value or "").split("@", 1)[0].strip().lower()
+        local = _LOCAL_PART_ALLOWED.sub("", local).strip("._+-")
+        return local or "user"
 
     def authenticate(self, email: str, password: str) -> User:
         """Verify credentials and return the matching active user.

@@ -14,8 +14,15 @@ from src.modules.auth.exceptions import (
     EmailAlreadyRegisteredError,
     InactiveUserError,
     InvalidCredentialsError,
+    SendingEmailAlreadyInUseError,
 )
-from src.modules.auth.schemas import LoginRequest, TokenResponse, UserCreate, UserRead
+from src.modules.auth.schemas import (
+    LoginRequest,
+    SendingEmailAvailability,
+    TokenResponse,
+    UserCreate,
+    UserRead,
+)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -41,9 +48,49 @@ def register(payload: UserCreate, auth_service: AuthServiceDep) -> UserRead:
     """
     try:
         user = auth_service.register(payload)
-    except EmailAlreadyRegisteredError as exc:
+    except (EmailAlreadyRegisteredError, SendingEmailAlreadyInUseError) as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     return UserRead.model_validate(user)
+
+
+@router.get(
+    "/sending-email/availability",
+    response_model=SendingEmailAvailability,
+    summary="Check whether an outbound sending address is free (registration helper)",
+)
+def check_sending_email_availability(
+    auth_service: AuthServiceDep,
+    email: str | None = None,
+    sending_email: str | None = None,
+) -> SendingEmailAvailability:
+    """Resolve and check a candidate ``sending_email`` for the register form.
+
+    Unauthenticated — the registration page calls it before an account exists.
+    Pass ``email`` (the login email) to get the default suggestion, and/or
+    ``sending_email`` when the user has edited the address; the ``sending_email``
+    value wins as the source of the local part. Either way the address is
+    re-anchored to the configured outbound domain before the uniqueness check.
+
+    Args:
+        auth_service: Injected authentication service.
+        email: The user's login email (source of the default local part).
+        sending_email: The user's edited address, if any.
+
+    Returns:
+        The resolved address, whether it is available, and whether an outbound
+        domain is configured at all.
+    """
+    source = sending_email or email or ""
+    resolved = auth_service.suggest_sending_email(source) if source else None
+    if resolved is None:
+        # No outbound domain configured (or nothing to resolve) — the feature
+        # is simply off; report "available" so the form never blocks.
+        return SendingEmailAvailability(sending_email=None, available=True, configured=False)
+    return SendingEmailAvailability(
+        sending_email=resolved,
+        available=auth_service.is_sending_email_available(resolved),
+        configured=True,
+    )
 
 
 @router.post("/login", response_model=TokenResponse, summary="Authenticate and get a JWT")

@@ -310,6 +310,18 @@
                   class="w-full border border-slate-300 rounded-lg p-3 text-slate-700 outline-none resize-y font-serif"
                 ></textarea>
               </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">
+                  <i class="fa-solid fa-paperclip mr-1 text-slate-400"></i> Attachments
+                </label>
+                <input
+                  type="file"
+                  id="email-attachments"
+                  multiple
+                  class="w-full text-sm text-slate-600 border border-slate-300 rounded-lg p-2 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                />
+                <span class="text-xs text-slate-400">Optional. Files are sent with the email.</span>
+              </div>
             </div>
 
             <div
@@ -399,6 +411,14 @@
                   <input type="text" id="rfq-target-price" placeholder="$12.00"
                     class="w-full border border-slate-300 rounded-lg p-2.5 text-slate-700 outline-none" />
                 </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">
+                  <i class="fa-solid fa-paperclip mr-1 text-slate-400"></i> Attachments
+                </label>
+                <input type="file" id="rfq-attachments" multiple
+                  class="w-full text-sm text-slate-600 border border-slate-300 rounded-lg p-2 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer" />
+                <span class="text-xs text-slate-400">Optional, e.g. a quotation form or spec sheet.</span>
               </div>
             </div>
 
@@ -1079,9 +1099,14 @@
         overlay.classList.remove("hidden");
 
         try {
+          // Multipart body so any attachments ride along with the send.
+          const formData = new FormData();
+          const files = document.getElementById("email-attachments").files;
+          for (const file of files) formData.append("attachments", file);
+
           const response = await fetch(
             "/api/v1/email-delivery/conversations/from-draft/" + currentDraft.id,
-            { method: "POST" }
+            { method: "POST", body: formData }
           );
           const data = await response.json();
           if (!response.ok) {
@@ -1093,6 +1118,7 @@
           currentDraft = null;
           document.getElementById("email-type").value = "";
           document.getElementById("query-text").value = "";
+          document.getElementById("email-attachments").value = "";
           document
             .getElementById("email-verification-section")
             .classList.add("hidden");
@@ -1136,10 +1162,19 @@
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Sending...';
         try {
+          // Multipart body so any attachments ride along with the RFQ fields.
+          const formData = new FormData();
+          formData.append("supplier_email", payload.supplier_email);
+          formData.append("supplier_name", payload.supplier_name);
+          formData.append("product_name", payload.product_name);
+          formData.append("quantity", String(payload.quantity));
+          formData.append("target_price", payload.target_price);
+          const files = document.getElementById("rfq-attachments").files;
+          for (const file of files) formData.append("attachments", file);
+
           const response = await fetch("/api/v1/email-delivery/conversations/rfq", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
+            body: formData,
           });
           const data = await response.json();
           if (!response.ok) {
@@ -1154,6 +1189,7 @@
             "rfq-product",
             "rfq-quantity",
             "rfq-target-price",
+            "rfq-attachments",
           ].forEach((id) => (document.getElementById(id).value = ""));
         } catch (err) {
           errorBox.textContent = err.message;
@@ -1266,14 +1302,43 @@
                   </span>
                 </td>
                 <td class="p-4 border-b border-slate-100 text-center">${replyBadge}</td>
-                <td class="p-4 border-b border-slate-100 text-center">
+                <td class="p-4 border-b border-slate-100 text-center whitespace-nowrap">
                   <button onclick="viewConversation('${esc(conv.id)}')" class="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-2 rounded-lg transition-colors" title="View conversation thread">
                     <i class="fa-solid fa-eye"></i>
+                  </button>
+                  <button onclick="deleteConversation('${esc(conv.id)}')" class="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-lg transition-colors" title="Delete from history">
+                    <i class="fa-solid fa-trash"></i>
                   </button>
                 </td>
               </tr>`;
           })
           .join("");
+      }
+
+      // Delete a conversation (and its whole thread) from the dispatch
+      // history. Confirms first, then removes it optimistically from the table.
+      async function deleteConversation(conversationId) {
+        if (
+          !confirm(
+            "Delete this conversation and its entire history? This cannot be undone."
+          )
+        ) {
+          return;
+        }
+        try {
+          const response = await fetch(
+            "/api/v1/email-delivery/conversations/" + conversationId,
+            { method: "DELETE" }
+          );
+          if (!response.ok && response.status !== 204) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(extractErrorMessage(data, "Failed to delete the conversation."));
+          }
+          conversationsData = conversationsData.filter((c) => c.id !== conversationId);
+          renderTrackingTable();
+        } catch (err) {
+          alert(err.message);
+        }
       }
 
       // Open the details modal and load one conversation's full thread.

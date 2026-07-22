@@ -60,6 +60,7 @@ def generate_email_draft(
             query_text=payload.query_text,
             sender_name=current_user.full_name,
             sender_email=current_user.email,
+            sender_phone=current_user.phone_number or "",
         )
     except EmailDraftGenerationError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc

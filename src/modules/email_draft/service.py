@@ -84,6 +84,7 @@ class EmailDraftService:
         sender_email: str = "",
         sender_role: str = "",
         company_name: str = "",
+        sender_phone: str = "",
     ) -> DraftedEmail:
         """Draft one email from a query and persist it as a new draft.
 
@@ -102,6 +103,8 @@ class EmailDraftService:
             sender_email: The signed-in user's email, used for the sign-off.
             sender_role: The signed-in user's role, used for the sign-off.
             company_name: The sender's company, used for the sign-off.
+            sender_phone: The signed-in user's phone number, folded into the
+                "Best regards" sign-off when set.
 
         Returns:
             The saved :class:`DraftedEmail`.
@@ -120,6 +123,7 @@ class EmailDraftService:
             sender_email=sender_email,
             sender_role=sender_role,
             company_name=company_name,
+            sender_phone=sender_phone,
         )
         try:
             raw = self._llm_client.generate(system_prompt=system_prompt, user_prompt=user_prompt)

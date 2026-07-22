@@ -22,6 +22,7 @@ from src.modules.auth.exceptions import (
     EmailAlreadyRegisteredError,
     InactiveUserError,
     InvalidCredentialsError,
+    SendingEmailAlreadyInUseError,
 )
 from src.modules.auth.schemas import UserCreate
 
@@ -95,13 +96,22 @@ def login_submit(
 
 @router.get("/register", response_class=HTMLResponse, response_model=None)
 def register_page(
-    request: Request, current_user: OptionalCookieUserDep
+    request: Request, current_user: OptionalCookieUserDep, settings: SettingsDep
 ) -> HTMLResponse | RedirectResponse:
     """Render the registration form, or redirect if already signed in."""
     if current_user is not None:
         return RedirectResponse(url="/dashboard", status_code=status.HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(
-        request, "register.html", {"error": None, "email": "", "full_name": ""}
+        request,
+        "register.html",
+        {
+            "error": None,
+            "email": "",
+            "full_name": "",
+            "phone_number": "",
+            "sending_email": "",
+            "outbound_domain": settings.default_outbound_domain,
+        },
     )
 
 
@@ -109,19 +119,36 @@ def register_page(
 def register_submit(
     request: Request,
     auth_service: AuthServiceDep,
+    settings: SettingsDep,
     full_name: Annotated[str, Form()],
     email: Annotated[str, Form()],
     password: Annotated[str, Form()],
+    phone_number: Annotated[str, Form()] = "",
+    sending_email: Annotated[str, Form()] = "",
 ) -> HTMLResponse | RedirectResponse:
     """Handle a registration form submission.
 
     Validates the form via :class:`UserCreate`, creates the account, and
-    redirects to the login page with a success flag. Validation or duplicate
-    errors re-render the form with a message.
+    redirects to the login page with a success flag. Validation, duplicate
+    email, or already-in-use sending-address errors re-render the form with a
+    message and the user's entered values.
     """
-    context: dict[str, object] = {"error": None, "email": email, "full_name": full_name}
+    context: dict[str, object] = {
+        "error": None,
+        "email": email,
+        "full_name": full_name,
+        "phone_number": phone_number,
+        "sending_email": sending_email,
+        "outbound_domain": settings.default_outbound_domain,
+    }
     try:
-        payload = UserCreate(full_name=full_name, email=email, password=password)
+        payload = UserCreate(
+            full_name=full_name,
+            email=email,
+            password=password,
+            phone_number=phone_number or None,
+            sending_email=sending_email or None,
+        )
     except ValidationError as exc:
         context["error"] = _first_validation_message(exc)
         return templates.TemplateResponse(
@@ -130,7 +157,7 @@ def register_submit(
 
     try:
         auth_service.register(payload)
-    except EmailAlreadyRegisteredError as exc:
+    except (EmailAlreadyRegisteredError, SendingEmailAlreadyInUseError) as exc:
         context["error"] = str(exc)
         return templates.TemplateResponse(
             request, "register.html", context, status_code=status.HTTP_409_CONFLICT

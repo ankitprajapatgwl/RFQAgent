@@ -15,6 +15,15 @@ class EmailAlreadyRegisteredError(AuthError):
     """Raised when registering an email that already exists."""
 
 
+class SendingEmailAlreadyInUseError(AuthError):
+    """Raised when a chosen outbound ``sending_email`` is already taken.
+
+    Each user's ``sending_email`` must be globally unique — it is the address
+    the email-delivery module matches a brand-new supplier email against to
+    recover its owning user, so two users cannot share one.
+    """
+
+
 class InvalidCredentialsError(AuthError):
     """Raised when a login attempt has an unknown email or wrong password."""
 

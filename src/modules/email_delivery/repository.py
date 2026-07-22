@@ -134,6 +134,40 @@ class EmailDeliveryRepository:
         )
         return list(self._session.scalars(stmt).all())
 
+    def delete_conversation(
+        self, *, user_id: uuid.UUID, conversation_id: uuid.UUID
+    ) -> list[str] | None:
+        """Delete one owned conversation and its whole thread.
+
+        The ORM cascade (``delete-orphan`` on ``emails`` → ``attachments``)
+        removes every email and attachment row belonging to the conversation.
+        The stored attachment URLs are collected first and returned so the
+        service can delete the backing files from local storage.
+
+        Args:
+            user_id: The requesting user's id (owns the conversation).
+            conversation_id: The conversation to delete.
+
+        Returns:
+            The list of attachment URLs that were attached to the deleted
+            conversation (possibly empty), or ``None`` if no such conversation
+            exists for this user.
+        """
+        conversation = self.get_detail_for_user(
+            user_id=user_id, conversation_id=conversation_id
+        )
+        if conversation is None:
+            return None
+        urls = [
+            attachment.url
+            for email in conversation.emails
+            for attachment in email.attachments
+            if attachment.url
+        ]
+        self._session.delete(conversation)
+        self._session.flush()
+        return urls
+
     def find_latest_conversation_by_supplier(
         self, *, user_id: uuid.UUID, supplier_email: str
     ) -> Conversation | None:

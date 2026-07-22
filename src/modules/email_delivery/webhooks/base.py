@@ -8,7 +8,8 @@ parser that converts its native payload into one normalised
 :class:`WebhookParserMaster` owns the behaviour that does not vary by provider:
 
 - :meth:`WebhookParserMaster.persist_attachments` — write extracted attachment
-  bytes to disk and return metadata for the UI/DB.
+  bytes to disk and return metadata for the UI/DB (delegates to the shared
+  :func:`~src.modules.email_delivery.attachments.store_attachments`).
 - :meth:`WebhookParserMaster.verify_signature` — a default "trusted"
   implementation for providers that secure inbound by an unguessable URL /
   network controls rather than an HMAC signature.
@@ -18,8 +19,6 @@ Subclasses implement only :meth:`WebhookParserMaster.parse`.
 
 from __future__ import annotations
 
-import re
-import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
@@ -27,24 +26,15 @@ from typing import Any
 from fastapi import Request
 
 from src.config import Settings
+from src.modules.email_delivery.attachments import RawAttachment, store_attachments
 from src.observability import get_logger
 
 logger = get_logger(__name__)
 
-
-@dataclass
-class RawAttachment:
-    """An attachment extracted from an inbound payload, still in memory.
-
-    Attributes:
-        filename: Original filename supplied by the sender.
-        content_type: MIME type, e.g. ``"application/pdf"``.
-        content: Raw file bytes, ready to be written to disk.
-    """
-
-    filename: str
-    content_type: str
-    content: bytes
+# Re-exported for backward compatibility: ``RawAttachment`` originally lived in
+# this module. It now lives in ``attachments`` (shared by outbound sends), but
+# existing imports of ``webhooks.base.RawAttachment`` keep working.
+__all__ = ["InboundEmail", "RawAttachment", "WebhookParserMaster"]
 
 
 @dataclass
@@ -139,11 +129,9 @@ class WebhookParserMaster(ABC):
     ) -> list[dict[str, Any]]:
         """Write attachment bytes to disk and return their metadata.
 
-        Each file is saved under :attr:`Settings.attachments_dir` with a
-        collision-resistant name (``{conv_id}_{batch}_{index}_{filename}``) and
-        exposed at ``{attachments_url_path}/{name}``. The per-call ``batch``
-        token prevents a later reply on the same conversation from overwriting
-        an earlier one whose attachment shares a filename.
+        Thin wrapper over the shared
+        :func:`~src.modules.email_delivery.attachments.store_attachments`, kept
+        as an instance method so existing callers (and tests) are unchanged.
 
         Args:
             conv_id: The conversation the attachments belong to.
@@ -153,47 +141,4 @@ class WebhookParserMaster(ABC):
             One metadata dict per saved file with keys ``filename``,
             ``content_type``, ``size`` and ``url``.
         """
-        saved: list[dict[str, Any]] = []
-        directory = self.settings.attachments_dir
-        directory.mkdir(parents=True, exist_ok=True)
-        url_base = self.settings.attachments_url_path.rstrip("/")
-
-        batch = uuid.uuid4().hex[:8]
-        for index, att in enumerate(attachments, start=1):
-            safe_base = self._safe_filename(att.filename or f"file_{index}")
-            safe_name = f"{conv_id}_{batch}_{index}_{safe_base}"
-            path = directory / safe_name
-            try:
-                with open(path, "wb") as handle:
-                    handle.write(att.content)
-            except OSError as exc:
-                # A single bad attachment must not abort the whole reply.
-                logger.error("Failed to save attachment %s: %s", safe_name, exc)
-                continue
-            saved.append(
-                {
-                    "filename": att.filename,
-                    "content_type": att.content_type,
-                    "size": len(att.content),
-                    "url": f"{url_base}/{safe_name}",
-                }
-            )
-            logger.debug("Saved attachment %s", safe_name)
-        return saved
-
-    @staticmethod
-    def _safe_filename(filename: str) -> str:
-        """Strip directory components and unsafe characters from a name.
-
-        Prevents path traversal (``../``) and keeps only characters that are
-        safe on common filesystems.
-
-        Args:
-            filename: The sender-supplied filename.
-
-        Returns:
-            A sanitised basename, never empty.
-        """
-        base = filename.replace("\\", "/").split("/")[-1]
-        cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", base).strip("_")
-        return cleaned or "attachment"
+        return store_attachments(self.settings, conv_id, attachments)

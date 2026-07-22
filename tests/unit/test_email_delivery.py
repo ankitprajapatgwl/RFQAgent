@@ -287,3 +287,84 @@ def test_inbound_unknown_address_is_unmatched(
     result = service._record_inbound(inbound, service._webhook_parser())
     assert result["status"] == "unmatched"
     assert service.list_conversations(user_id=user.id) == []
+
+
+def test_inbound_reply_strips_quoted_history(
+    service: EmailDeliveryService, user: User
+) -> None:
+    conversation = _open_conversation(service, user)
+    inbound = InboundEmail(
+        from_email="supplier@acme.com",
+        to_email=conversation.reply_to_address,
+        subject="Re: Quote please",
+        body_text=(
+            "Our price is $11.50 per unit.\n\n"
+            "On Wed, Jul 22, 2026 at 6:12 PM Jane Doe\n"
+            "<jane@x.com> wrote:\n\n> Please quote.\n"
+        ),
+        provider="engagelab",
+    )
+    service._record_inbound(inbound, service._webhook_parser())
+    detail = service.get_conversation_detail(user_id=user.id, conversation_id=conversation.id)
+    assert detail is not None
+    received = [e for e in detail.emails if e.direction == EmailDirection.RECEIVED.value][0]
+    assert received.body_text == "Our price is $11.50 per unit."
+
+
+# ── Outbound attachments + history deletion ──────────────────────────────────
+
+
+def test_send_draft_with_attachment_transmits_and_persists(
+    service: EmailDeliveryService, user: User, monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(Settings, "attachments_dir", property(lambda self: tmp_path))
+    attachments = [RawAttachment("quote.pdf", "application/pdf", b"%PDF-1.4 data")]
+    with patch("httpx.post", return_value=_mock_send()) as mock_post:
+        conversation = service.send_draft(
+            user_id=user.id,
+            user_name=user.full_name,
+            sender_email=user.sending_email,
+            recipient="supplier@acme.com",
+            recipient_name="Acme",
+            subject="Quote please",
+            body_text="Please quote.",
+            attachments=attachments,
+        )
+    # Transmitted to the provider.
+    payload = mock_post.call_args.kwargs["json"]
+    assert payload["body"]["attachments"][0]["filename"] == "quote.pdf"
+    # Persisted against the sent email and written to local storage.
+    detail = service.get_conversation_detail(user_id=user.id, conversation_id=conversation.id)
+    assert detail is not None
+    sent = [e for e in detail.emails if e.direction == EmailDirection.SENT.value][0]
+    assert len(sent.attachments) == 1
+    assert sent.attachments[0].filename == "quote.pdf"
+    assert (tmp_path / sent.attachments[0].url.split("/")[-1]).exists()
+
+
+def test_delete_conversation_removes_it_and_files(
+    service: EmailDeliveryService, user: User, monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(Settings, "attachments_dir", property(lambda self: tmp_path))
+    with patch("httpx.post", return_value=_mock_send()):
+        conversation = service.send_draft(
+            user_id=user.id,
+            user_name=user.full_name,
+            sender_email=user.sending_email,
+            recipient="supplier@acme.com",
+            recipient_name="Acme",
+            subject="Quote please",
+            body_text="Please quote.",
+            attachments=[RawAttachment("quote.pdf", "application/pdf", b"%PDF data")],
+        )
+    detail = service.get_conversation_detail(user_id=user.id, conversation_id=conversation.id)
+    file_path = tmp_path / detail.emails[0].attachments[0].url.split("/")[-1]
+    assert file_path.exists()
+
+    assert service.delete_conversation(user_id=user.id, conversation_id=conversation.id) is True
+    assert service.get_conversation_detail(
+        user_id=user.id, conversation_id=conversation.id
+    ) is None
+    assert not file_path.exists()
+    # Deleting again reports "not found" rather than raising.
+    assert service.delete_conversation(user_id=user.id, conversation_id=conversation.id) is False
