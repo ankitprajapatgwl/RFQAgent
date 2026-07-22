@@ -1,9 +1,11 @@
-"""Server-rendered HTML page routes.
+"""Server-rendered HTML page routes for the auth module.
 
-These routes back the browser experience: login and registration forms, a
-protected dashboard, and logout. On success the login form stores the JWT in an
-HttpOnly cookie so subsequent page requests are authenticated without exposing
-the token to JavaScript.
+These routes back the browser experience: login and registration forms, and
+logout. On success the login form stores the JWT in an HttpOnly cookie so
+subsequent page requests are authenticated without exposing the token to
+JavaScript. The protected dashboard shell lives in
+:mod:`src.api.routes.dashboard` — it composes this module with others, so it
+isn't owned by the auth module itself.
 """
 
 from __future__ import annotations
@@ -14,18 +16,16 @@ from fastapi import APIRouter, Form, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import ValidationError
 
-from src.api.deps import AuthServiceDep, OptionalCookieUserDep, SettingsDep
 from src.api.templating import templates
-from src.domain.schemas.sample_query_schema import EmailTypeOption
-from src.domain.schemas.user_schema import UserCreate
-from src.services.exceptions import (
+from src.modules.auth.deps import AuthServiceDep, OptionalCookieUserDep, SettingsDep
+from src.modules.auth.exceptions import (
     EmailAlreadyRegisteredError,
     InactiveUserError,
     InvalidCredentialsError,
 )
-from src.services.sample_query_prompts import EMAIL_TYPE_LABELS
+from src.modules.auth.schemas import UserCreate
 
-router = APIRouter(tags=["pages"], include_in_schema=False)
+router = APIRouter(tags=["auth-pages"], include_in_schema=False)
 
 
 def _first_validation_message(error: ValidationError) -> str:
@@ -47,13 +47,6 @@ def _set_session_cookie(
         samesite="lax",
         secure=secure,
     )
-
-
-@router.get("/", include_in_schema=False)
-def index(current_user: OptionalCookieUserDep) -> RedirectResponse:
-    """Send signed-in users to the dashboard and everyone else to login."""
-    target = "/dashboard" if current_user is not None else "/login"
-    return RedirectResponse(url=target, status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.get("/login", response_class=HTMLResponse, response_model=None)
@@ -144,21 +137,6 @@ def register_submit(
         )
 
     return RedirectResponse(url="/login?registered=1", status_code=status.HTTP_303_SEE_OTHER)
-
-
-@router.get("/dashboard", response_class=HTMLResponse, response_model=None)
-def dashboard_page(
-    request: Request, current_user: OptionalCookieUserDep
-) -> HTMLResponse | RedirectResponse:
-    """Render the protected dashboard, redirecting anonymous visitors to login."""
-    if current_user is None:
-        return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
-    email_types = [
-        EmailTypeOption(value=value, label=label) for value, label in EMAIL_TYPE_LABELS.items()
-    ]
-    return templates.TemplateResponse(
-        request, "dashboard.html", {"user": current_user, "email_types": email_types}
-    )
 
 
 @router.get("/logout")

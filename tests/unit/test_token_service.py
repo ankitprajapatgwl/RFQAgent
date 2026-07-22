@@ -4,8 +4,8 @@ import uuid
 
 import pytest
 from src.config.settings import Settings
-from src.services import TokenService
-from src.services.exceptions import InvalidTokenError
+from src.modules.auth.exceptions import InvalidTokenError
+from src.modules.auth.token_service import TokenService
 
 
 def test_roundtrip_encodes_and_decodes(token_service: TokenService) -> None:

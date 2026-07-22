@@ -1,13 +1,11 @@
-"""Shared FastAPI dependencies.
+"""FastAPI dependency wiring for the auth module.
 
-Dependency-injection wiring lives here so routes stay declarative. Each request
-gets a fresh database session and an :class:`~src.services.auth_service.AuthService`
-composed from cached, stateless collaborators.
+Every collaborator the auth routes need — repository, hasher, token service,
+current-user resolution — is composed here so routes stay declarative.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterator
 from functools import lru_cache
 from typing import Annotated
 
@@ -16,33 +14,16 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from src.config import Settings, get_settings
-from src.domain.models import User
-from src.integrations import LLMClient, get_database
-from src.services import (
-    AuthService,
-    BcryptPasswordHasher,
-    InvalidTokenError,
-    PasswordHasher,
-    SampleQueryService,
-    TokenService,
-    UserRepository,
-)
+from src.integrations.database import get_db_session
+from src.modules.auth.exceptions import InvalidTokenError
+from src.modules.auth.models import User
+from src.modules.auth.password_hasher import BcryptPasswordHasher, PasswordHasher
+from src.modules.auth.repository import UserRepository
+from src.modules.auth.service import AuthService
+from src.modules.auth.token_service import TokenService
 
 # ``auto_error=False`` lets us raise our own, consistent 401 responses.
 _bearer_scheme = HTTPBearer(auto_error=False)
-
-
-def get_db_session() -> Iterator[Session]:
-    """Yield a request-scoped session, committing on success.
-
-    The surrounding :meth:`Database.session` context manager commits when the
-    request handler returns normally and rolls back if it raises.
-
-    Yields:
-        An active SQLAlchemy :class:`~sqlalchemy.orm.Session`.
-    """
-    with get_database().session() as session:
-        yield session
 
 
 @lru_cache(maxsize=1)
@@ -143,9 +124,9 @@ def get_required_user_from_cookie(
 ) -> User:
     """Resolve the current user from the session cookie, or raise ``401``.
 
-    Used by JSON endpoints called from the dashboard's own page scripts
-    (``fetch``), where the session cookie — not a ``Bearer`` header — is the
-    only credential the browser sends automatically.
+    Used by JSON endpoints called from the app's own page scripts (``fetch``),
+    where the session cookie — not a ``Bearer`` header — is the only
+    credential the browser sends automatically.
 
     Args:
         current_user: The optional user resolved from the session cookie.
@@ -161,27 +142,6 @@ def get_required_user_from_cookie(
     return current_user
 
 
-@lru_cache(maxsize=1)
-def get_llm_client() -> LLMClient:
-    """Return the shared Anthropic LLM client."""
-    return LLMClient(get_settings())
-
-
-def get_sample_query_service(
-    llm_client: Annotated[LLMClient, Depends(get_llm_client)],
-) -> SampleQueryService:
-    """Compose a :class:`SampleQueryService` for the current request.
-
-    Args:
-        llm_client: Shared LLM client.
-
-    Returns:
-        A fully wired :class:`SampleQueryService`.
-    """
-    return SampleQueryService(llm_client)
-
-
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
 OptionalCookieUserDep = Annotated["User | None", Depends(get_optional_user_from_cookie)]
 RequiredCookieUserDep = Annotated[User, Depends(get_required_user_from_cookie)]
-SampleQueryServiceDep = Annotated[SampleQueryService, Depends(get_sample_query_service)]

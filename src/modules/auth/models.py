@@ -1,26 +1,23 @@
-"""SQLAlchemy ORM models for the authentication feature.
+"""SQLAlchemy ORM models for the auth module.
 
 These are the persistence-layer representations of domain entities. Pydantic
-schemas (see :mod:`src.domain.schemas`) are the API contracts; this module
-is strictly about how entities are stored.
+schemas (see :mod:`src.modules.auth.schemas`) are the API contracts; this
+module is strictly about how entities are stored.
 """
 
 import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, String, Uuid
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 
-from src.domain.enums import UserRole
+from src.integrations.database import Base
+from src.modules.auth.enums import UserRole
 
 
 def _utcnow() -> datetime:
     """Return the current timezone-aware UTC timestamp."""
     return datetime.now(UTC)
-
-
-class Base(DeclarativeBase):
-    """Declarative base class shared by all ORM models."""
 
 
 class User(Base):

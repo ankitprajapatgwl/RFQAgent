@@ -13,10 +13,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from src.api.routes import auth, pages, sample_queries
+from src.api.routes import dashboard
 from src.api.templating import STATIC_DIR
 from src.config import Settings, get_settings
 from src.integrations import get_database
+from src.modules import auth, sample_data
 from src.observability import configure_logging, get_logger
 
 logger = get_logger(__name__)
@@ -62,10 +63,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     STATIC_DIR.mkdir(parents=True, exist_ok=True)
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-    # JSON API first, then the HTML page routes.
-    app.include_router(auth.router)
-    app.include_router(sample_queries.router)
-    app.include_router(pages.router)
+    # JSON APIs first, then HTML page routes.
+    app.include_router(auth.api_router)
+    app.include_router(sample_data.api_router)
+    app.include_router(auth.pages_router)
+    app.include_router(dashboard.router)
 
     @app.get("/health", tags=["system"], summary="Liveness/readiness probe")
     def health() -> dict[str, str]:

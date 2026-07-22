@@ -8,7 +8,7 @@ skill files currently require — no field list duplicated in code.
 from __future__ import annotations
 
 from src.config.settings import PROJECT_ROOT
-from src.domain.enums import EmailType
+from src.modules.sample_data.enums import EmailType
 
 _SKILLS_DIR = PROJECT_ROOT / "skills" / "emails-patterns"
 _RFQ_FIELDS_PATH = PROJECT_ROOT / "rfq_fields.md"

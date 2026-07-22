@@ -11,13 +11,12 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from src.config.settings import Settings
-from src.domain.models import Base
-from src.services import (
-    AuthService,
-    BcryptPasswordHasher,
-    TokenService,
-    UserRepository,
-)
+from src.integrations.database import Base
+from src.modules.auth.password_hasher import BcryptPasswordHasher
+from src.modules.auth.repository import UserRepository
+from src.modules.auth.service import AuthService
+from src.modules.auth.token_service import TokenService
+from src.modules.sample_data.repository import SampleQueryRepository
 
 
 @pytest.fixture
@@ -66,3 +65,9 @@ def auth_service(
 ) -> AuthService:
     """Return a fully wired auth service backed by the in-memory database."""
     return AuthService(UserRepository(db_session), password_hasher, token_service)
+
+
+@pytest.fixture
+def sample_query_repository(db_session: Session) -> SampleQueryRepository:
+    """Return a sample-query repository backed by the in-memory database."""
+    return SampleQueryRepository(db_session)

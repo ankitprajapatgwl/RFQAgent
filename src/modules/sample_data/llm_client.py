@@ -1,9 +1,10 @@
 """Thin wrapper around the Anthropic SDK.
 
 Per the coding standards (file ``04``, rule 3.4), every external LLM call goes
-through this module — services and agents never import ``anthropic``
-directly. This is also the only place that applies the timeout and
-exponential-backoff retry policy.
+through this module — the service never imports ``anthropic`` directly. This
+is also the only place that applies the timeout and exponential-backoff retry
+policy. It lives inside ``sample_data`` rather than a shared ``integrations``
+layer because this module is currently the LLM's only consumer.
 """
 
 from __future__ import annotations
@@ -51,7 +52,8 @@ class LLMClient:
             The concatenated text of the model's response.
 
         Raises:
-            LLMGenerationError: If every retry attempt fails.
+            LLMGenerationError: If every retry attempt fails, or the response
+                was truncated before completion (hit ``max_tokens``).
         """
         last_error: Exception | None = None
         for attempt in range(1, self._max_retries + 1):

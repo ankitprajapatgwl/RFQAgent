@@ -14,8 +14,8 @@ import jwt
 from pydantic import ValidationError
 
 from src.config import Settings
-from src.domain.schemas.auth_schema import TokenPayload
-from src.services.exceptions import InvalidTokenError
+from src.modules.auth.exceptions import InvalidTokenError
+from src.modules.auth.schemas import TokenPayload
 
 
 class TokenService:

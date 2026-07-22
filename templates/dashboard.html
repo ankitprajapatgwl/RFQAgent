@@ -1,65 +1,229 @@
-{% extends "base.html" %}
+{% extends "app_base.html" %}
 {% block title %}Dashboard · RFQ Agent{% endblock %}
-{% block card_class %}card--wide{% endblock %}
-{% block subtitle %}<p class="card__subtitle">You're signed in</p>{% endblock %}
-{% block content %}
-  <div class="welcome">
-    <div class="avatar">{{ user.full_name[0] | upper }}</div>
-    <h1 class="welcome__name">Welcome, {{ user.full_name }}</h1>
-    <p class="welcome__email">{{ user.email }}</p>
+{% block body %}
+<div class="app-shell" id="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <button class="sidebar__toggle" id="sidebar-toggle" type="button" aria-label="Collapse menu">
+      <span>☰</span>
+    </button>
+    <nav class="sidebar__nav">
+      <button class="sidebar__item sidebar__item--active" type="button"
+              data-view="generate-email" title="Generate Email">
+        <span class="sidebar__icon">✉️</span>
+        <span class="sidebar__label">Generate Email</span>
+      </button>
+      <button class="sidebar__item" type="button"
+              data-view="track-response" title="Track Response">
+        <span class="sidebar__icon">📊</span>
+        <span class="sidebar__label">Track Response</span>
+      </button>
+    </nav>
+  </aside>
+
+  <div class="app-main">
+    <header class="topbar">
+      <div class="brand brand--compact">RFQ<span>Agent</span></div>
+      <div class="profile-menu" id="profile-menu">
+        <button class="profile-menu__trigger" id="profile-trigger" type="button" aria-label="Profile">
+          <span class="avatar">{{ user.full_name[0] | upper }}</span>
+        </button>
+        <div class="profile-menu__dropdown" id="profile-dropdown" hidden>
+          <div class="profile-menu__name">{{ user.full_name }}</div>
+          <div class="profile-menu__email">{{ user.email }}</div>
+          <div class="profile-menu__role">{{ user.role.value }}</div>
+          <a class="btn btn--secondary profile-menu__logout" href="/logout">Sign out</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="view-area">
+      <section class="view" id="view-generate-email" data-view-panel="generate-email">
+        <h2 class="view__title">Generate Email</h2>
+        <p class="view__hint">Pick an email type, then generate a random fictional sample —
+          or reuse one you generated earlier — to draft from.</p>
+
+        <div class="sample-query">
+          <label class="field">
+            <span class="field__label">Email type</span>
+            <select class="field__input" id="email-type-select">
+              {% for opt in email_types %}
+              <option value="{{ opt.value }}">{{ opt.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Saved sample data</span>
+            <select class="field__input" id="saved-select">
+              <option value="">— Generate a new sample —</option>
+            </select>
+          </label>
+
+          <div class="sample-actions">
+            <button class="btn btn--primary" id="generate-btn" type="button">
+              Generate random sample query
+            </button>
+          </div>
+
+          <div id="sample-error" class="alert alert--error" hidden></div>
+
+          <div id="sample-result" class="sample-result" hidden>
+            <label class="field">
+              <span class="field__label">Sample query</span>
+              <textarea class="field__input sample-result__textarea" id="sample-query-text"
+                        rows="5" readonly></textarea>
+            </label>
+            <dl class="details" id="sample-fields"></dl>
+
+            <div class="sample-actions">
+              <button class="btn btn--secondary" id="draft-btn" type="button">Email Draft</button>
+            </div>
+            <div id="draft-stub-note" class="alert alert--success" hidden>
+              Email drafting is coming soon — it will use this sample data to draft the email.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-track-response" data-view-panel="track-response" hidden>
+        <h2 class="view__title">Track Response</h2>
+      </section>
+    </main>
   </div>
-  <dl class="details">
-    <div class="details__row"><dt>User ID</dt><dd>{{ user.id }}</dd></div>
-    <div class="details__row"><dt>Role</dt><dd>{{ user.role.value }}</dd></div>
-    <div class="details__row"><dt>Status</dt><dd>{{ 'Active' if user.is_active else 'Inactive' }}</dd></div>
-    <div class="details__row"><dt>Member since</dt><dd>{{ user.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd></div>
-  </dl>
-
-  <section class="sample-query">
-    <h2 class="sample-query__title">Draft an email to a supplier</h2>
-    <label class="field">
-      <span class="field__label">Email type</span>
-      <select class="field__input" id="email-type-select">
-        {% for opt in email_types %}
-        <option value="{{ opt.value }}">{{ opt.label }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <button class="btn btn--primary" id="generate-btn" type="button">Generate random sample query</button>
-
-    <div id="sample-error" class="alert alert--error" hidden></div>
-
-    <div id="sample-result" class="sample-result" hidden>
-      <label class="field">
-        <span class="field__label">Sample query</span>
-        <textarea class="field__input sample-result__textarea" id="sample-query-text" rows="6" readonly></textarea>
-      </label>
-      <dl class="details" id="sample-fields"></dl>
-    </div>
-  </section>
-
-  <a class="btn btn--secondary" href="/logout">Sign out</a>
+</div>
 {% endblock %}
 {% block scripts %}
 <script>
   (function () {
-    const btn = document.getElementById("generate-btn");
-    const select = document.getElementById("email-type-select");
+    // ---- Sidebar collapse + view switching ----
+    const sidebar = document.getElementById("sidebar");
+    const sidebarToggle = document.getElementById("sidebar-toggle");
+    const navItems = document.querySelectorAll(".sidebar__item");
+    const viewPanels = document.querySelectorAll("[data-view-panel]");
+
+    sidebarToggle.addEventListener("click", function () {
+      sidebar.classList.toggle("sidebar--collapsed");
+    });
+
+    navItems.forEach(function (item) {
+      item.addEventListener("click", function () {
+        navItems.forEach(function (other) {
+          other.classList.toggle("sidebar__item--active", other === item);
+        });
+        const target = item.dataset.view;
+        viewPanels.forEach(function (panel) {
+          panel.hidden = panel.dataset.viewPanel !== target;
+        });
+      });
+    });
+
+    // ---- Profile menu ----
+    const profileMenu = document.getElementById("profile-menu");
+    const profileTrigger = document.getElementById("profile-trigger");
+    const profileDropdown = document.getElementById("profile-dropdown");
+
+    profileTrigger.addEventListener("click", function (event) {
+      event.stopPropagation();
+      profileDropdown.hidden = !profileDropdown.hidden;
+    });
+    document.addEventListener("click", function (event) {
+      if (!profileMenu.contains(event.target)) {
+        profileDropdown.hidden = true;
+      }
+    });
+
+    // ---- Generate Email panel ----
+    const emailTypeSelect = document.getElementById("email-type-select");
+    const savedSelect = document.getElementById("saved-select");
+    const generateBtn = document.getElementById("generate-btn");
+    const draftBtn = document.getElementById("draft-btn");
+    const draftStubNote = document.getElementById("draft-stub-note");
     const resultBox = document.getElementById("sample-result");
     const errorBox = document.getElementById("sample-error");
     const queryText = document.getElementById("sample-query-text");
     const fieldsList = document.getElementById("sample-fields");
 
-    btn.addEventListener("click", async function () {
-      btn.disabled = true;
-      const originalLabel = btn.textContent;
-      btn.textContent = "Generating…";
+    let savedSamples = [];
+
+    function showError(message) {
+      errorBox.textContent = message;
+      errorBox.hidden = false;
+    }
+
+    function renderSample(sample) {
+      errorBox.hidden = true;
+      queryText.value = sample.query_text;
+      fieldsList.innerHTML = "";
+      Object.keys(sample.fields).forEach(function (key) {
+        const row = document.createElement("div");
+        row.className = "details__row";
+        const dt = document.createElement("dt");
+        dt.textContent = key.replace(/_/g, " ");
+        const dd = document.createElement("dd");
+        dd.textContent = sample.fields[key];
+        row.appendChild(dt);
+        row.appendChild(dd);
+        fieldsList.appendChild(row);
+      });
+      draftStubNote.hidden = true;
+      resultBox.hidden = false;
+    }
+
+    function sampleLabel(sample) {
+      const when = new Date(sample.created_at).toLocaleString();
+      const preview =
+        sample.query_text.length > 40 ? sample.query_text.slice(0, 40) + "…" : sample.query_text;
+      return when + " — " + preview;
+    }
+
+    async function loadSavedSamples(emailType) {
+      savedSelect.innerHTML = '<option value="">— Generate a new sample —</option>';
+      resultBox.hidden = true;
+      errorBox.hidden = true;
+      savedSamples = [];
+      try {
+        const response = await fetch(
+          "/api/v1/sample-queries?email_type=" + encodeURIComponent(emailType)
+        );
+        if (!response.ok) return;
+        savedSamples = await response.json();
+        savedSamples.forEach(function (sample) {
+          const option = document.createElement("option");
+          option.value = sample.id;
+          option.textContent = sampleLabel(sample);
+          savedSelect.appendChild(option);
+        });
+      } catch (err) {
+        // Saved-sample history is a convenience; a failed fetch just leaves
+        // the "generate a new sample" placeholder in place.
+      }
+    }
+
+    emailTypeSelect.addEventListener("change", function () {
+      loadSavedSamples(emailTypeSelect.value);
+    });
+
+    savedSelect.addEventListener("change", function () {
+      if (!savedSelect.value) {
+        resultBox.hidden = true;
+        return;
+      }
+      const sample = savedSamples.find(function (item) {
+        return item.id === savedSelect.value;
+      });
+      if (sample) renderSample(sample);
+    });
+
+    generateBtn.addEventListener("click", async function () {
+      generateBtn.disabled = true;
+      const originalLabel = generateBtn.textContent;
+      generateBtn.textContent = "Generating…";
       errorBox.hidden = true;
       resultBox.hidden = true;
 
       try {
         const response = await fetch(
-          "/api/v1/sample-queries/" + encodeURIComponent(select.value),
+          "/api/v1/sample-queries/" + encodeURIComponent(emailTypeSelect.value),
           { method: "POST" }
         );
         const data = await response.json();
@@ -67,28 +231,28 @@
           throw new Error(data.detail || "Failed to generate a sample query.");
         }
 
-        queryText.value = data.query_text;
-        fieldsList.innerHTML = "";
-        Object.keys(data.fields).forEach(function (key) {
-          const row = document.createElement("div");
-          row.className = "details__row";
-          const dt = document.createElement("dt");
-          dt.textContent = key.replace(/_/g, " ");
-          const dd = document.createElement("dd");
-          dd.textContent = data.fields[key];
-          row.appendChild(dt);
-          row.appendChild(dd);
-          fieldsList.appendChild(row);
-        });
-        resultBox.hidden = false;
+        savedSamples.unshift(data);
+        const option = document.createElement("option");
+        option.value = data.id;
+        option.textContent = sampleLabel(data);
+        savedSelect.insertBefore(option, savedSelect.options[1] || null);
+        savedSelect.value = data.id;
+
+        renderSample(data);
       } catch (err) {
-        errorBox.textContent = err.message;
-        errorBox.hidden = false;
+        showError(err.message);
       } finally {
-        btn.disabled = false;
-        btn.textContent = originalLabel;
+        generateBtn.disabled = false;
+        generateBtn.textContent = originalLabel;
       }
     });
+
+    draftBtn.addEventListener("click", function () {
+      draftStubNote.hidden = false;
+    });
+
+    // Initial load for the default-selected email type.
+    loadSavedSamples(emailTypeSelect.value);
   })();
 </script>
 {% endblock %}

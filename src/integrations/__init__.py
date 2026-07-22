@@ -1,12 +1,11 @@
-"""Integrations layer — everything that talks to the outside world.
+"""Integrations layer — infrastructure shared across every module.
 
-For the authentication feature this is the relational database; for sample
-query generation it is the Anthropic LLM. Keeping these in their own layer
-means the services above depend on an abstraction, not a concrete database
-engine or LLM SDK.
+Currently just the relational database (engine/session management and the
+shared declarative :class:`Base`). Anything module-specific — like the
+Anthropic LLM client used only by ``modules/sample_data`` — lives inside that
+module instead, so the module stays self-contained.
 """
 
-from src.integrations.database import Database, get_database
-from src.integrations.llm_client import LLMClient, LLMGenerationError
+from src.integrations.database import Base, Database, get_database, get_db_session
 
-__all__ = ["Database", "LLMClient", "LLMGenerationError", "get_database"]
+__all__ = ["Base", "Database", "get_database", "get_db_session"]

@@ -1,15 +1,15 @@
 """Unit tests for the authentication service orchestration."""
 
 import pytest
-from src.domain.enums import UserRole
-from src.domain.schemas.user_schema import UserCreate
-from src.services import AuthService
-from src.services.exceptions import (
+from src.modules.auth.enums import UserRole
+from src.modules.auth.exceptions import (
     EmailAlreadyRegisteredError,
     InactiveUserError,
     InvalidCredentialsError,
     InvalidTokenError,
 )
+from src.modules.auth.schemas import UserCreate
+from src.modules.auth.service import AuthService
 
 
 def _new_user_payload(email: str = "ada@example.com") -> UserCreate:

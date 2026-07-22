@@ -1,4 +1,4 @@
-"""Data-access layer for :class:`~src.domain.models.User`.
+"""Data-access layer for :class:`~src.modules.auth.models.User`.
 
 Implements the *Repository pattern*: all SQL/ORM queries for users live behind
 this class, so the service layer never touches SQLAlchemy directly. Swapping the
@@ -12,8 +12,8 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.domain.enums import UserRole
-from src.domain.models import User
+from src.modules.auth.enums import UserRole
+from src.modules.auth.models import User
 
 
 class UserRepository:

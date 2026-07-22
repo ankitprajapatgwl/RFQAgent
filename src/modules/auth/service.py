@@ -10,19 +10,18 @@ from __future__ import annotations
 
 import uuid
 
-from src.domain.models import User
-from src.domain.schemas.auth_schema import TokenResponse
-from src.domain.schemas.user_schema import UserCreate
-from src.observability import get_logger
-from src.services.exceptions import (
+from src.modules.auth.exceptions import (
     EmailAlreadyRegisteredError,
     InactiveUserError,
     InvalidCredentialsError,
     InvalidTokenError,
 )
-from src.services.password_hasher import PasswordHasher
-from src.services.token_service import TokenService
-from src.services.user_repository import UserRepository
+from src.modules.auth.models import User
+from src.modules.auth.password_hasher import PasswordHasher
+from src.modules.auth.repository import UserRepository
+from src.modules.auth.schemas import TokenResponse, UserCreate
+from src.modules.auth.token_service import TokenService
+from src.observability import get_logger
 
 logger = get_logger(__name__)
 

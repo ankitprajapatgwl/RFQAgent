@@ -4,6 +4,12 @@ The :class:`Database` class encapsulates SQLAlchemy engine creation and session
 handling behind a single object (a lightweight *facade*). A module-level
 :func:`get_database` accessor returns a process-wide singleton so the whole app
 shares one connection pool.
+
+:class:`Base` is the single declarative base shared by every module's ORM
+models (``modules/auth/models.py``, ``modules/sample_data/models.py``, ...) so
+:meth:`Database.create_all` creates every module's tables in one call. It
+lives here — shared infrastructure — rather than inside any one module, to
+keep modules independent of each other.
 """
 
 from __future__ import annotations
@@ -15,13 +21,16 @@ from pathlib import Path
 
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from src.config import Settings, get_settings
-from src.domain.models import Base
 from src.observability import get_logger
 
 logger = get_logger(__name__)
+
+
+class Base(DeclarativeBase):
+    """Declarative base class shared by every module's ORM models."""
 
 # Retry policy for the initial connection — a freshly started Postgres container
 # may not accept connections immediately (coding standards: every external call
@@ -129,3 +138,17 @@ def get_database() -> Database:
     if _database is None:
         _database = Database(get_settings())
     return _database
+
+
+def get_db_session() -> Iterator[Session]:
+    """Yield a request-scoped session, committing on success.
+
+    Shared by every module's ``deps.py`` — the surrounding
+    :meth:`Database.session` context manager commits when the request handler
+    returns normally and rolls back if it raises.
+
+    Yields:
+        An active SQLAlchemy :class:`~sqlalchemy.orm.Session`.
+    """
+    with get_database().session() as session:
+        yield session

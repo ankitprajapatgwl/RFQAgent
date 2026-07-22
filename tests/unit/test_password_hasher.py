@@ -1,6 +1,6 @@
 """Unit tests for the bcrypt password hashing strategy."""
 
-from src.services import BcryptPasswordHasher
+from src.modules.auth.password_hasher import BcryptPasswordHasher
 
 
 def test_hash_is_not_plaintext(password_hasher: BcryptPasswordHasher) -> None:

@@ -2,21 +2,20 @@
 
 These endpoints implement the machine-facing contract: register, login (returns
 a JWT), and a protected "current user" endpoint. HTML page rendering lives in
-:mod:`src.api.routes.pages`.
+:mod:`src.modules.auth.pages`.
 """
 
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, status
 
-from src.api.deps import AuthServiceDep, CurrentUserDep
-from src.domain.schemas.auth_schema import LoginRequest, TokenResponse
-from src.domain.schemas.user_schema import UserCreate, UserRead
-from src.services.exceptions import (
+from src.modules.auth.deps import AuthServiceDep, CurrentUserDep
+from src.modules.auth.exceptions import (
     EmailAlreadyRegisteredError,
     InactiveUserError,
     InvalidCredentialsError,
 )
+from src.modules.auth.schemas import LoginRequest, TokenResponse, UserCreate, UserRead
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -64,7 +63,9 @@ def login(payload: LoginRequest, auth_service: AuthServiceDep) -> TokenResponse:
     try:
         _, token = auth_service.login(payload.email, payload.password)
     except InvalidCredentialsError as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)
+        ) from exc
     except InactiveUserError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     return token
