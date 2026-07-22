@@ -16,12 +16,14 @@ from pydantic import ValidationError
 
 from src.api.deps import AuthServiceDep, OptionalCookieUserDep, SettingsDep
 from src.api.templating import templates
+from src.domain.schemas.sample_query_schema import EmailTypeOption
 from src.domain.schemas.user_schema import UserCreate
 from src.services.exceptions import (
     EmailAlreadyRegisteredError,
     InactiveUserError,
     InvalidCredentialsError,
 )
+from src.services.sample_query_prompts import EMAIL_TYPE_LABELS
 
 router = APIRouter(tags=["pages"], include_in_schema=False)
 
@@ -151,7 +153,12 @@ def dashboard_page(
     """Render the protected dashboard, redirecting anonymous visitors to login."""
     if current_user is None:
         return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
-    return templates.TemplateResponse(request, "dashboard.html", {"user": current_user})
+    email_types = [
+        EmailTypeOption(value=value, label=label) for value, label in EMAIL_TYPE_LABELS.items()
+    ]
+    return templates.TemplateResponse(
+        request, "dashboard.html", {"user": current_user, "email_types": email_types}
+    )
 
 
 @router.get("/logout")

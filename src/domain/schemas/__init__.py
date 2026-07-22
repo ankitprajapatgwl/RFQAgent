@@ -6,10 +6,13 @@ boundary is validated against one of these models rather than a loose ``dict``.
 """
 
 from src.domain.schemas.auth_schema import LoginRequest, TokenPayload, TokenResponse
+from src.domain.schemas.sample_query_schema import EmailTypeOption, SampleQueryResponse
 from src.domain.schemas.user_schema import UserCreate, UserRead
 
 __all__ = [
+    "EmailTypeOption",
     "LoginRequest",
+    "SampleQueryResponse",
     "TokenPayload",
     "TokenResponse",
     "UserCreate",

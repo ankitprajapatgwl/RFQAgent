@@ -8,7 +8,7 @@
 </head>
 <body>
   <main class="page">
-    <div class="card">
+    <div class="card {% block card_class %}{% endblock %}">
       <header class="card__header">
         <div class="brand">RFQ<span>Agent</span></div>
         {% block subtitle %}{% endblock %}
@@ -17,5 +17,6 @@
     </div>
     <footer class="footnote">RFQ Agent · Authentication Service</footer>
   </main>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

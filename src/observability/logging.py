@@ -10,9 +10,7 @@ import sys
 
 _CONFIGURED = False
 
-_LOG_FORMAT = (
-    "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
-)
+_LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
 
 
 def configure_logging(level: str = "INFO") -> None:

@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from src.api.routes import auth, pages
+from src.api.routes import auth, pages, sample_queries
 from src.api.templating import STATIC_DIR
 from src.config import Settings, get_settings
 from src.integrations import get_database
@@ -64,6 +64,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # JSON API first, then the HTML page routes.
     app.include_router(auth.router)
+    app.include_router(sample_queries.router)
     app.include_router(pages.router)
 
     @app.get("/health", tags=["system"], summary="Liveness/readiness probe")

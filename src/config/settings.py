@@ -39,6 +39,15 @@ class Settings(BaseSettings):
         session_cookie_name: Name of the cookie storing the access token for the
             HTML page flow.
         log_level: Root logging level (e.g. ``INFO``, ``DEBUG``).
+        anthropic_api_key: API key for the Anthropic SDK, used to generate
+            sample email-drafting queries. MUST be overridden via the
+            environment; never hardcode a real key.
+        llm_model: Anthropic model id used for sample-query generation.
+            Defaults to Haiku — cheap and fast, appropriate for short-form
+            structured sample data rather than final customer-facing content.
+        llm_timeout_seconds: Timeout applied to every LLM call.
+        llm_max_retries: Maximum retry attempts for a failed LLM call, with
+            exponential backoff between attempts.
     """
 
     model_config = SettingsConfigDict(
@@ -70,6 +79,14 @@ class Settings(BaseSettings):
     session_cookie_name: str = "rfq_access_token"
 
     log_level: str = "INFO"
+
+    anthropic_api_key: str = Field(
+        default="",
+        description="API key for the Anthropic SDK (sample-query generation).",
+    )
+    llm_model: str = "claude-haiku-4-5-20251001"
+    llm_timeout_seconds: float = 30.0
+    llm_max_retries: int = 3
 
     @property
     def is_sqlite(self) -> bool:

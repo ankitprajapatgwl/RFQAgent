@@ -74,8 +74,6 @@ class BcryptPasswordHasher(PasswordHasher):
         corrupt record can never crash the login flow.
         """
         try:
-            return bcrypt.checkpw(
-                self._encode(plain_password), hashed_password.encode("utf-8")
-            )
+            return bcrypt.checkpw(self._encode(plain_password), hashed_password.encode("utf-8"))
         except (ValueError, TypeError):
             return False

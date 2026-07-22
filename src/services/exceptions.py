@@ -25,3 +25,7 @@ class InactiveUserError(AuthError):
 
 class InvalidTokenError(AuthError):
     """Raised when a JWT is missing, malformed, or expired."""
+
+
+class SampleQueryGenerationError(Exception):
+    """Raised when the LLM fails to produce a valid sample email query."""

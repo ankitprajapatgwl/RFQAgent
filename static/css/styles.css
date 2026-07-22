@@ -229,6 +229,40 @@ body {
   font-weight: 600;
 }
 
+.card--wide {
+  max-width: 640px;
+}
+
+select.field__input {
+  background: #fff;
+  cursor: pointer;
+}
+
+.sample-query {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sample-query__title {
+  margin: 0;
+  font-size: 17px;
+}
+
+.sample-result {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sample-result__textarea {
+  font-family: inherit;
+  resize: vertical;
+}
+
 .footnote {
   margin-top: 20px;
   color: rgba(226, 232, 240, 0.7);

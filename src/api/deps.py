@@ -17,12 +17,13 @@ from sqlalchemy.orm import Session
 
 from src.config import Settings, get_settings
 from src.domain.models import User
-from src.integrations import get_database
+from src.integrations import LLMClient, get_database
 from src.services import (
     AuthService,
     BcryptPasswordHasher,
     InvalidTokenError,
     PasswordHasher,
+    SampleQueryService,
     TokenService,
     UserRepository,
 )
@@ -137,5 +138,50 @@ def get_optional_user_from_cookie(
         return None
 
 
+def get_required_user_from_cookie(
+    current_user: Annotated[User | None, Depends(get_optional_user_from_cookie)],
+) -> User:
+    """Resolve the current user from the session cookie, or raise ``401``.
+
+    Used by JSON endpoints called from the dashboard's own page scripts
+    (``fetch``), where the session cookie — not a ``Bearer`` header — is the
+    only credential the browser sends automatically.
+
+    Args:
+        current_user: The optional user resolved from the session cookie.
+
+    Returns:
+        The authenticated :class:`User`.
+
+    Raises:
+        HTTPException: ``401`` if no valid session cookie is present.
+    """
+    if current_user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated.")
+    return current_user
+
+
+@lru_cache(maxsize=1)
+def get_llm_client() -> LLMClient:
+    """Return the shared Anthropic LLM client."""
+    return LLMClient(get_settings())
+
+
+def get_sample_query_service(
+    llm_client: Annotated[LLMClient, Depends(get_llm_client)],
+) -> SampleQueryService:
+    """Compose a :class:`SampleQueryService` for the current request.
+
+    Args:
+        llm_client: Shared LLM client.
+
+    Returns:
+        A fully wired :class:`SampleQueryService`.
+    """
+    return SampleQueryService(llm_client)
+
+
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
 OptionalCookieUserDep = Annotated["User | None", Depends(get_optional_user_from_cookie)]
+RequiredCookieUserDep = Annotated[User, Depends(get_required_user_from_cookie)]
+SampleQueryServiceDep = Annotated[SampleQueryService, Depends(get_sample_query_service)]

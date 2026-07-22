@@ -16,8 +16,10 @@ from src.services.exceptions import (
     InactiveUserError,
     InvalidCredentialsError,
     InvalidTokenError,
+    SampleQueryGenerationError,
 )
 from src.services.password_hasher import BcryptPasswordHasher, PasswordHasher
+from src.services.sample_query_service import SampleQueryService
 from src.services.token_service import TokenService
 from src.services.user_repository import UserRepository
 
@@ -30,6 +32,8 @@ __all__ = [
     "InvalidCredentialsError",
     "InvalidTokenError",
     "PasswordHasher",
+    "SampleQueryGenerationError",
+    "SampleQueryService",
     "TokenService",
     "UserRepository",
 ]

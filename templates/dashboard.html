@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Dashboard · RFQ Agent{% endblock %}
+{% block card_class %}card--wide{% endblock %}
 {% block subtitle %}<p class="card__subtitle">You're signed in</p>{% endblock %}
 {% block content %}
   <div class="welcome">
@@ -13,5 +14,81 @@
     <div class="details__row"><dt>Status</dt><dd>{{ 'Active' if user.is_active else 'Inactive' }}</dd></div>
     <div class="details__row"><dt>Member since</dt><dd>{{ user.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd></div>
   </dl>
+
+  <section class="sample-query">
+    <h2 class="sample-query__title">Draft an email to a supplier</h2>
+    <label class="field">
+      <span class="field__label">Email type</span>
+      <select class="field__input" id="email-type-select">
+        {% for opt in email_types %}
+        <option value="{{ opt.value }}">{{ opt.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="btn btn--primary" id="generate-btn" type="button">Generate random sample query</button>
+
+    <div id="sample-error" class="alert alert--error" hidden></div>
+
+    <div id="sample-result" class="sample-result" hidden>
+      <label class="field">
+        <span class="field__label">Sample query</span>
+        <textarea class="field__input sample-result__textarea" id="sample-query-text" rows="6" readonly></textarea>
+      </label>
+      <dl class="details" id="sample-fields"></dl>
+    </div>
+  </section>
+
   <a class="btn btn--secondary" href="/logout">Sign out</a>
+{% endblock %}
+{% block scripts %}
+<script>
+  (function () {
+    const btn = document.getElementById("generate-btn");
+    const select = document.getElementById("email-type-select");
+    const resultBox = document.getElementById("sample-result");
+    const errorBox = document.getElementById("sample-error");
+    const queryText = document.getElementById("sample-query-text");
+    const fieldsList = document.getElementById("sample-fields");
+
+    btn.addEventListener("click", async function () {
+      btn.disabled = true;
+      const originalLabel = btn.textContent;
+      btn.textContent = "Generating…";
+      errorBox.hidden = true;
+      resultBox.hidden = true;
+
+      try {
+        const response = await fetch(
+          "/api/v1/sample-queries/" + encodeURIComponent(select.value),
+          { method: "POST" }
+        );
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || "Failed to generate a sample query.");
+        }
+
+        queryText.value = data.query_text;
+        fieldsList.innerHTML = "";
+        Object.keys(data.fields).forEach(function (key) {
+          const row = document.createElement("div");
+          row.className = "details__row";
+          const dt = document.createElement("dt");
+          dt.textContent = key.replace(/_/g, " ");
+          const dd = document.createElement("dd");
+          dd.textContent = data.fields[key];
+          row.appendChild(dt);
+          row.appendChild(dd);
+          fieldsList.appendChild(row);
+        });
+        resultBox.hidden = false;
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.hidden = false;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+      }
+    });
+  })();
+</script>
 {% endblock %}

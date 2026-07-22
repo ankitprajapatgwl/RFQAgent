@@ -64,9 +64,7 @@ def login(payload: LoginRequest, auth_service: AuthServiceDep) -> TokenResponse:
     try:
         _, token = auth_service.login(payload.email, payload.password)
     except InvalidCredentialsError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
     except InactiveUserError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     return token
