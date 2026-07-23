@@ -25,7 +25,11 @@ from sqlalchemy.orm import Session
 from src.config import Settings
 from src.integrations.llm import LLMClient, LLMGenerationError
 from src.modules.email_delivery.models import Email
-from src.modules.email_extraction.attachments_reader import AttachmentRef, read_attachment_texts
+from src.modules.email_extraction.attachments_reader import (
+    AttachmentContent,
+    AttachmentRef,
+    read_attachments,
+)
 from src.modules.email_extraction.enums import ExtractedEmailType, ExtractionStatus
 from src.modules.email_extraction.exceptions import EmailExtractionError
 from src.modules.email_extraction.prompts import build_prompts
@@ -119,10 +123,10 @@ class EmailExtractorAgent:
         original_subject = email.subject or ""
         original_body = email.body_text or email.body_html or ""
         attachment_snapshots = self._attachment_snapshots(email)
-        attachments_text = read_attachment_texts(self._settings, self._attachment_refs(email))
+        attachments = read_attachments(self._settings, self._attachment_refs(email))
 
         try:
-            result = self._run(original_subject, original_body, attachments_text)
+            result = self._run(original_subject, original_body, attachments)
         except EmailExtractionError as exc:
             logger.warning("Extraction failed for email %s: %s", email.id, exc)
             repository.save(
@@ -167,13 +171,17 @@ class EmailExtractorAgent:
         )
         return True
 
-    def _run(self, subject: str, body: str, attachments_text: str) -> ExtractionResult:
+    def _run(self, subject: str, body: str, attachments: AttachmentContent) -> ExtractionResult:
         """Call the LLM and parse its response into an :class:`ExtractionResult`.
+
+        The text prompt goes first; any native media (PDF/image) blocks the
+        reader produced are appended so Claude reads them as part of the same
+        user turn.
 
         Args:
             subject: The email subject.
             body: The email body.
-            attachments_text: Pre-rendered attachment content.
+            attachments: Pre-rendered attachment content (text + media blocks).
 
         Returns:
             The validated extraction result.
@@ -183,10 +191,12 @@ class EmailExtractorAgent:
                 response cannot be parsed/validated.
         """
         system_prompt, user_prompt = build_prompts(
-            subject=subject, body=body, attachments_text=attachments_text
+            subject=subject, body=body, attachments_text=attachments.text
         )
+        content: list[dict[str, Any]] = [{"type": "text", "text": user_prompt}]
+        content.extend(attachments.media_blocks)
         try:
-            raw = self._llm_client.generate(system_prompt=system_prompt, user_prompt=user_prompt)
+            raw = self._llm_client.generate_multimodal(system_prompt=system_prompt, content=content)
         except LLMGenerationError as exc:
             raise EmailExtractionError("The extraction LLM call failed.") from exc
         return _parse_result(raw)

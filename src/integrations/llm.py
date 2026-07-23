@@ -14,8 +14,10 @@ from __future__ import annotations
 
 import time
 from functools import lru_cache
+from typing import Any, cast
 
 import anthropic
+from anthropic.types import MessageParam
 
 from src.config import Settings, get_settings
 from src.observability import get_logger
@@ -45,7 +47,10 @@ class LLMClient:
         self._max_retries = settings.llm_max_retries
 
     def generate(self, *, system_prompt: str, user_prompt: str, max_tokens: int = 4096) -> str:
-        """Request a single completion, retrying transient failures.
+        """Request a single completion from a plain-text prompt.
+
+        A thin wrapper over :meth:`generate_multimodal` for the common
+        text-only case (used by ``sample_data`` and ``email_draft``).
 
         Args:
             system_prompt: The system instructions for the request.
@@ -59,14 +64,47 @@ class LLMClient:
             LLMGenerationError: If every retry attempt fails, or the response
                 was truncated before completion (hit ``max_tokens``).
         """
+        return self.generate_multimodal(
+            system_prompt=system_prompt,
+            content=[{"type": "text", "text": user_prompt}],
+            max_tokens=max_tokens,
+        )
+
+    def generate_multimodal(
+        self,
+        *,
+        system_prompt: str,
+        content: list[dict[str, Any]],
+        max_tokens: int = 4096,
+    ) -> str:
+        """Request a single completion from mixed content blocks, retrying failures.
+
+        ``content`` is the user turn's content list — any mix of ``text``,
+        ``image``, and ``document`` (PDF) blocks. Claude reads PDFs and images
+        natively (no beta header needed), so this is how the extractor lets the
+        model analyse attachments the way a person would.
+
+        Args:
+            system_prompt: The system instructions for the request.
+            content: The user-turn content blocks (text/image/document).
+            max_tokens: Maximum tokens to generate.
+
+        Returns:
+            The concatenated text of the model's response.
+
+        Raises:
+            LLMGenerationError: If every retry attempt fails, or the response
+                was truncated before completion (hit ``max_tokens``).
+        """
         last_error: Exception | None = None
         for attempt in range(1, self._max_retries + 1):
             try:
+                messages = cast("list[MessageParam]", [{"role": "user", "content": content}])
                 response = self._client.messages.create(
                     model=self._model,
                     max_tokens=max_tokens,
                     system=system_prompt,
-                    messages=[{"role": "user", "content": user_prompt}],
+                    messages=messages,
                 )
                 if response.stop_reason == "max_tokens":
                     raise LLMGenerationError(
