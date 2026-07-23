@@ -48,6 +48,10 @@ class Settings(BaseSettings):
         llm_timeout_seconds: Timeout applied to every LLM call.
         llm_max_retries: Maximum retry attempts for a failed LLM call, with
             exponential backoff between attempts.
+        worker_enabled: Whether the background email-processing worker starts
+            with the application.
+        worker_poll_interval_seconds: Seconds the worker waits between polls for
+            the next unprocessed email.
     """
 
     model_config = SettingsConfigDict(
@@ -153,6 +157,19 @@ class Settings(BaseSettings):
     sendgrid_company_name: str = Field(
         default="Your Company",
         description="From-header display name and email signature for SendGrid sends.",
+    )
+
+    # ── Background worker (inbound email processing) ────────────────────
+    # A plain background thread (no Celery/broker) started on app startup that
+    # polls for the oldest unprocessed received email and hands it downstream.
+    worker_enabled: bool = Field(
+        default=True,
+        description="Whether the background email-processing worker runs on startup.",
+    )
+    worker_poll_interval_seconds: float = Field(
+        default=3.0,
+        gt=0,
+        description="Seconds between worker polls for unprocessed emails.",
     )
 
     @property

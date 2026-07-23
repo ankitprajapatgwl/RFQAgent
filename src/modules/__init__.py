@@ -13,4 +13,6 @@ Available modules:
     email_draft    -- LLM-backed email drafting, review, and verification
     email_delivery -- outbound sending (verified draft / RFQ) + inbound reply
                       tracking via a provider-agnostic webhook
+    worker         -- background thread that polls for unprocessed received
+                      emails and hands them downstream (started on app startup)
 """

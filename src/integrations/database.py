@@ -41,11 +41,16 @@ _RETRY_BACKOFF_SECONDS = 2.0
 # Additive columns introduced after the initial schema shipped. ``create_all``
 # only creates missing *tables*, never new columns on an existing one, and this
 # project carries no Alembic setup — so a plain SQLite/Postgres ``ADD COLUMN``
-# (portable, nullable, no default) is applied idempotently at startup. Each
-# entry is ``table -> {column: column_type_ddl}``; extend it when a nullable
-# column is added to a model that may already exist in a deployed database.
+# is applied idempotently at startup. Each entry is ``table -> {column:
+# column_type_ddl}``; extend it when a column is added to a model that may
+# already exist in a deployed database. Prefer nullable, no-default columns
+# (portable everywhere); a ``NOT NULL DEFAULT <const>`` is also portable
+# (SQLite + Postgres) and backfills existing rows — used for
+# ``email_messages.processing_status`` so replies stored before the worker
+# shipped start out ``pending`` and get picked up.
 _ADDITIVE_COLUMNS: dict[str, dict[str, str]] = {
     "users": {"phone_number": "VARCHAR(32)"},
+    "email_messages": {"processing_status": "VARCHAR(16) NOT NULL DEFAULT 'pending'"},
 }
 
 

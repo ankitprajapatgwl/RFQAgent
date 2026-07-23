@@ -18,6 +18,7 @@ from src.api.templating import STATIC_DIR
 from src.config import Settings, get_settings
 from src.integrations import get_database
 from src.modules import auth, email_delivery, email_draft, sample_data
+from src.modules.worker import start_email_worker, stop_email_worker
 from src.observability import configure_logging, get_logger
 
 logger = get_logger(__name__)
@@ -25,17 +26,23 @@ logger = get_logger(__name__)
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Application lifespan: ensure the database schema exists on startup.
+    """Application lifespan: schema setup on startup, background worker teardown.
+
+    Ensures the database schema exists, then starts the background email worker
+    and keeps its runner on ``app.state`` so it can be stopped cleanly on
+    shutdown.
 
     Args:
-        app: The FastAPI application (unused but required by the protocol).
+        app: The FastAPI application; carries the worker runner on ``state``.
 
     Yields:
         Control back to the running application.
     """
     logger.info("Starting up — ensuring database schema.")
     get_database().create_all()
+    app.state.email_worker = start_email_worker(get_settings())
     yield
+    stop_email_worker(app.state.email_worker)
     logger.info("Shutting down.")
 
 

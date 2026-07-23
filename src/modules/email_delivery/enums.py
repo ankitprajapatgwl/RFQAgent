@@ -35,6 +35,22 @@ class ReplyAction(StrEnum):
     MANUAL_REVIEW = "MANUAL_REVIEW"
 
 
+class EmailProcessingStatus(StrEnum):
+    """Background-processing state of a stored email.
+
+    Consumed by the ``worker`` module, which polls for the oldest received
+    email still ``PENDING`` and hands it to downstream processing. ``PENDING``
+    on creation; the worker flips it to ``PROCESSED`` once handled. ``PROCESSING``
+    and ``FAILED`` are reserved for the real processing logic added later — an
+    in-flight claim and a terminal error state respectively.
+    """
+
+    PENDING = "pending"
+    PROCESSING = "processing"
+    PROCESSED = "processed"
+    FAILED = "failed"
+
+
 class InboundEmailType(StrEnum):
     """Whether an inbound email is a reply, a forward, or a fresh thread."""
 

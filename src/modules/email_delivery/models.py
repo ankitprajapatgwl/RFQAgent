@@ -27,7 +27,11 @@ from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text,
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.integrations.database import Base
-from src.modules.email_delivery.enums import ConversationStatus, UnmatchedStatus
+from src.modules.email_delivery.enums import (
+    ConversationStatus,
+    EmailProcessingStatus,
+    UnmatchedStatus,
+)
 
 
 def _utcnow() -> datetime:
@@ -112,6 +116,9 @@ class Email(Base):
         dkim / spf: Auth check results for received emails.
         spam_score: SpamAssassin-style score for received emails.
         status_code: HTTP status the provider returned for a sent email.
+        processing_status: Background-processing state driven by the ``worker``
+            module (``pending`` on creation, ``processed`` once handled). Only
+            received emails are picked up for processing today.
         created_at: When the row was recorded.
     """
 
@@ -139,6 +146,12 @@ class Email(Base):
     spf: Mapped[str | None] = mapped_column(String(255), nullable=True)
     spam_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    processing_status: Mapped[str] = mapped_column(
+        String(16),
+        default=EmailProcessingStatus.PENDING.value,
+        nullable=False,
+        index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, nullable=False
     )

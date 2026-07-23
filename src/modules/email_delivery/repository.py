@@ -22,7 +22,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from src.modules.auth.models import User
-from src.modules.email_delivery.enums import ConversationStatus, EmailDirection
+from src.modules.email_delivery.enums import (
+    ConversationStatus,
+    EmailDirection,
+    EmailProcessingStatus,
+)
 from src.modules.email_delivery.exceptions import DuplicateConversationTokenError
 from src.modules.email_delivery.models import Attachment, Conversation, Email, UnmatchedEmail
 
@@ -273,6 +277,41 @@ class EmailDeliveryRepository:
             self._session.add_all(rows)
             self._session.flush()
         return rows
+
+    def get_oldest_unprocessed_received_email(self) -> Email | None:
+        """Return the earliest-saved received email still awaiting processing.
+
+        Powers the background ``worker``: received (inbound supplier) emails
+        whose ``processing_status`` is ``pending``, ordered oldest-first by
+        ``created_at`` so the queue is drained in arrival order (FIFO).
+
+        Returns:
+            The oldest pending received :class:`Email`, or ``None`` when the
+            queue is empty.
+        """
+        stmt = (
+            select(Email)
+            .where(
+                Email.direction == EmailDirection.RECEIVED.value,
+                Email.processing_status == EmailProcessingStatus.PENDING.value,
+            )
+            .order_by(Email.created_at.asc())
+            .limit(1)
+        )
+        return self._session.scalars(stmt).first()
+
+    def mark_email_processed(self, email: Email) -> Email:
+        """Flag an email as processed so the worker does not pick it up again.
+
+        Args:
+            email: The attached email to update.
+
+        Returns:
+            The updated email.
+        """
+        email.processing_status = EmailProcessingStatus.PROCESSED.value
+        self._session.flush()
+        return email
 
     # ── Unmatched inbound ─────────────────────────────────────────────────
 
