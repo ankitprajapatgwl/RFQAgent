@@ -56,26 +56,34 @@
         <button
           onclick="switchTab('drafting')"
           id="nav-drafting"
-          class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg bg-blue-600 text-white transition-colors"
+          class="w-full flex items-center space-x-2 px-3 py-2 rounded-lg bg-blue-600 text-white transition-colors"
         >
-          <i class="fa-solid fa-pen-nib w-5 text-center"></i>
-          <span class="font-medium">Email Drafting</span>
+          <i class="fa-solid fa-pen-nib w-4 text-center text-sm"></i>
+          <span class="font-medium text-sm">Email Drafting</span>
         </button>
         <button
           onclick="switchTab('rfq')"
           id="nav-rfq"
-          class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+          class="w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
         >
-          <i class="fa-solid fa-file-invoice w-5 text-center"></i>
-          <span class="font-medium">Send RFQ</span>
+          <i class="fa-solid fa-file-invoice w-4 text-center text-sm"></i>
+          <span class="font-medium text-sm">Send RFQ</span>
         </button>
         <button
           onclick="switchTab('tracking')"
           id="nav-tracking"
-          class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+          class="w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
         >
-          <i class="fa-solid fa-chart-line w-5 text-center"></i>
-          <span class="font-medium">Tracking</span>
+          <i class="fa-solid fa-clock-rotate-left w-4 text-center text-sm"></i>
+          <span class="font-medium text-sm">Email Dispatch History</span>
+        </button>
+        <button
+          onclick="switchTab('monitoring')"
+          id="nav-monitoring"
+          class="w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+        >
+          <i class="fa-solid fa-magnifying-glass-chart w-4 text-center text-sm"></i>
+          <span class="font-medium text-sm">RFQ Monitoring</span>
         </button>
       </nav>
 
@@ -503,6 +511,71 @@
             </div>
           </div>
         </div>
+
+        <!-- TAB: RFQ Monitoring -->
+        <div id="monitoring-tab" class="tab-content max-w-6xl mx-auto">
+          <div
+            class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"
+          >
+            <div
+              class="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50"
+            >
+              <div>
+                <h3 class="text-lg font-semibold text-slate-800">
+                  RFQ Monitoring
+                </h3>
+                <p class="text-sm text-slate-500 mt-1">
+                  Every supplier email the extractor has processed — the original
+                  message beside the details our agent pulled out of it.
+                </p>
+              </div>
+              <button
+                onclick="loadExtractions()"
+                class="bg-white hover:bg-slate-100 text-slate-600 px-3 py-2 rounded-lg text-sm border border-slate-300 transition-colors"
+                title="Refresh"
+              >
+                <i class="fa-solid fa-rotate-right mr-1"></i> Refresh
+              </button>
+            </div>
+
+            <!-- Loading state -->
+            <div
+              id="monitoring-loading"
+              class="hidden p-10 text-center text-slate-500"
+            >
+              <i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2"></i>
+              <p class="text-sm">Loading extracted emails...</p>
+            </div>
+
+            <!-- Error state -->
+            <div
+              id="monitoring-error"
+              class="hidden m-5 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm"
+            ></div>
+
+            <!-- Populated by JS: one card per extracted email -->
+            <div id="monitoring-list" class="p-5 space-y-4"></div>
+
+            <!-- Empty state -->
+            <div
+              id="monitoring-empty"
+              class="hidden p-10 text-center flex flex-col items-center justify-center"
+            >
+              <div
+                class="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mb-4 text-2xl"
+              >
+                <i class="fa-solid fa-magnifying-glass-chart"></i>
+              </div>
+              <h4 class="text-slate-700 font-medium text-lg">
+                Nothing extracted yet
+              </h4>
+              <p class="text-slate-500 mt-1 max-w-sm mx-auto">
+                When suppliers reply, the background agent reads each message and
+                its attachments and the extracted details show up here.
+              </p>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
 
@@ -643,6 +716,71 @@
       </div>
     </div>
 
+    <!-- 3. Extracted Email JSON Modal -->
+    <div
+      id="modal-extraction-json"
+      class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center"
+    >
+      <div
+        class="bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 modal-enter flex flex-col max-h-[90vh]"
+      >
+        <div
+          class="p-5 border-b flex justify-between items-center bg-slate-50 rounded-t-xl"
+        >
+          <h3 class="text-lg font-semibold text-slate-800">
+            <i class="fa-solid fa-code text-indigo-600 mr-2"></i> Extracted Email JSON
+          </h3>
+          <button
+            onclick="closeModal('modal-extraction-json')"
+            class="text-slate-400 hover:text-slate-600"
+          >
+            <i class="fa-solid fa-times text-xl"></i>
+          </button>
+        </div>
+        <div class="p-6 overflow-y-auto flex-1">
+          <div id="extraction-json-loading" class="hidden py-8 text-center text-slate-500">
+            <i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2"></i>
+            <p class="text-sm">Loading extracted details...</p>
+          </div>
+          <div id="extraction-json-empty" class="hidden py-8 text-center text-slate-500">
+            <div
+              class="w-12 h-12 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mb-3 text-xl mx-auto"
+            >
+              <i class="fa-solid fa-inbox"></i>
+            </div>
+            <p class="text-sm">
+              No extracted details for this conversation yet.
+            </p>
+            <p class="text-xs text-slate-400 mt-1">
+              Details appear once a supplier reply has been processed.
+            </p>
+          </div>
+          <div
+            id="extraction-json-error"
+            class="hidden p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm"
+          ></div>
+          <pre
+            id="extraction-json-body"
+            class="hidden bg-slate-900 text-slate-100 text-xs rounded-lg p-4 overflow-x-auto whitespace-pre"
+          ></pre>
+        </div>
+        <div class="p-4 border-t bg-slate-50 flex justify-between items-center rounded-b-xl">
+          <button
+            onclick="copyExtractionJson(this)"
+            class="px-4 py-2 text-slate-600 hover:text-slate-800 font-medium text-sm"
+          >
+            <i class="fa-regular fa-copy mr-1"></i> Copy JSON
+          </button>
+          <button
+            onclick="closeModal('modal-extraction-json')"
+            class="px-5 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 font-medium"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Loading Overlay -->
     <div
       id="loading-overlay"
@@ -703,11 +841,12 @@
       }
 
       // Core UI Functions
-      const TABS = ["drafting", "rfq", "tracking"];
+      const TABS = ["drafting", "rfq", "tracking", "monitoring"];
       const TAB_TITLES = {
         drafting: "Email Drafting Workspace",
         rfq: "Send Request for Quotation",
-        tracking: "Email Tracking & History",
+        tracking: "Email Dispatch History",
+        monitoring: "RFQ Monitoring",
       };
       const NAV_INACTIVE =
         "w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors";
@@ -733,6 +872,9 @@
 
         if (tabId === "tracking") {
           loadConversations();
+        }
+        if (tabId === "monitoring") {
+          loadExtractions();
         }
       }
 
@@ -1306,6 +1448,9 @@
                   <button onclick="viewConversation('${esc(conv.id)}')" class="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-2 rounded-lg transition-colors" title="View conversation thread">
                     <i class="fa-solid fa-eye"></i>
                   </button>
+                  <button onclick="viewExtractionJson('${esc(conv.id)}')" class="text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 p-2 rounded-lg transition-colors" title="View extracted email JSON">
+                    <i class="fa-solid fa-code"></i>
+                  </button>
                   <button onclick="deleteConversation('${esc(conv.id)}')" class="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-lg transition-colors" title="Delete from history">
                     <i class="fa-solid fa-trash"></i>
                   </button>
@@ -1439,6 +1584,209 @@
               </div>`;
           })
           .join("");
+      }
+
+      // ── RFQ Monitoring (extracted emails) ─────────────────────────────
+
+      // A stable badge palette for the inbound email types the extractor
+      // classifies a supplier reply into.
+      const EXTRACTION_TYPE_STYLES = {
+        quote: "bg-green-100 text-green-700",
+        follow_up: "bg-yellow-100 text-yellow-700",
+        negotiation: "bg-purple-100 text-purple-700",
+        clarification: "bg-blue-100 text-blue-700",
+        decline: "bg-red-100 text-red-700",
+        sample: "bg-pink-100 text-pink-700",
+        order_confirmation: "bg-teal-100 text-teal-700",
+        general: "bg-slate-100 text-slate-600",
+      };
+
+      function extractionTypeBadge(row) {
+        const style = EXTRACTION_TYPE_STYLES[row.email_type] || EXTRACTION_TYPE_STYLES.general;
+        return (
+          '<span class="inline-block px-2.5 py-1 text-xs rounded font-medium ' +
+          style +
+          '">' +
+          esc(row.email_type_label || row.email_type) +
+          "</span>"
+        );
+      }
+
+      // Render an extracted-details object as a compact key/value table.
+      function renderDetailsTable(details) {
+        const entries = Object.entries(details || {}).filter(
+          ([, v]) => v !== null && v !== undefined && String(v).trim() !== ""
+        );
+        if (!entries.length) {
+          return '<p class="text-sm text-slate-400 italic">No details extracted.</p>';
+        }
+        const rows = entries
+          .map(([key, value]) => {
+            const label = esc(key.replace(/_/g, " "));
+            const val =
+              typeof value === "object"
+                ? esc(JSON.stringify(value))
+                : esc(String(value));
+            return (
+              '<tr class="border-b border-slate-100 last:border-0">' +
+              '<td class="py-1.5 pr-3 align-top text-slate-500 font-medium capitalize whitespace-nowrap">' +
+              label +
+              "</td>" +
+              '<td class="py-1.5 text-slate-800 break-words">' +
+              val +
+              "</td></tr>"
+            );
+          })
+          .join("");
+        return '<table class="w-full text-sm">' + rows + "</table>";
+      }
+
+      // Load every extracted email for the current user (RFQ Monitoring).
+      async function loadExtractions() {
+        const loading = document.getElementById("monitoring-loading");
+        const errorBox = document.getElementById("monitoring-error");
+        const list = document.getElementById("monitoring-list");
+        const empty = document.getElementById("monitoring-empty");
+
+        list.innerHTML = "";
+        empty.classList.add("hidden");
+        errorBox.classList.add("hidden");
+        loading.classList.remove("hidden");
+
+        try {
+          const response = await fetch("/api/v1/email-extraction/extractions");
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(extractErrorMessage(data, "Failed to load extracted emails."));
+          }
+          const rows = await response.json();
+          loading.classList.add("hidden");
+          if (!rows.length) {
+            empty.classList.remove("hidden");
+            return;
+          }
+          renderExtractions(rows);
+        } catch (err) {
+          loading.classList.add("hidden");
+          errorBox.textContent = err.message;
+          errorBox.classList.remove("hidden");
+        }
+      }
+
+      // Render one card per extracted email: original message on the left,
+      // extracted details on the right, with the classified email type badged.
+      function renderExtractions(rows) {
+        const list = document.getElementById("monitoring-list");
+        list.innerHTML = rows
+          .map((row) => {
+            const failed = row.status === "failed";
+            const statusBadgeHtml = failed
+              ? '<span class="inline-block px-2.5 py-1 text-xs rounded font-medium bg-red-100 text-red-700"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Extraction failed</span>'
+              : "";
+            const attachments = (row.original_attachments || [])
+              .map(
+                (a) =>
+                  '<a href="' +
+                  esc(a.url) +
+                  '" target="_blank" class="inline-flex items-center text-xs text-blue-600 hover:underline mr-3"><i class="fa-solid fa-paperclip mr-1"></i>' +
+                  esc(a.filename) +
+                  "</a>"
+              )
+              .join("");
+            const rightPane = failed
+              ? '<div class="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">' +
+                esc(row.error || "The extractor could not process this email.") +
+                "</div>"
+              : (row.summary
+                  ? '<p class="text-sm text-slate-600 italic mb-3">' + esc(row.summary) + "</p>"
+                  : "") + renderDetailsTable(row.details);
+
+            return `
+              <div class="border border-slate-200 rounded-xl overflow-hidden">
+                <div class="flex flex-wrap items-center gap-2 px-4 py-3 bg-slate-50 border-b border-slate-200">
+                  ${extractionTypeBadge(row)}
+                  ${statusBadgeHtml}
+                  <span class="text-sm font-medium text-slate-700">${esc(row.supplier_email)}</span>
+                  <span class="text-xs text-slate-400 ml-auto">${esc(formatDate(row.created_at))}</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200">
+                  <div class="p-4">
+                    <p class="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2">
+                      <i class="fa-solid fa-inbox mr-1"></i> Original Email
+                    </p>
+                    <p class="text-sm font-medium text-slate-800 mb-2">${esc(row.original_subject || "(no subject)")}</p>
+                    <div class="text-slate-700 whitespace-pre-wrap font-serif text-sm max-h-56 overflow-y-auto">${esc(row.original_body || "(no body)")}</div>
+                    ${attachments ? '<div class="mt-3 pt-2 border-t border-slate-200">' + attachments + "</div>" : ""}
+                  </div>
+                  <div class="p-4">
+                    <p class="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2">
+                      <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Extracted Details
+                    </p>
+                    ${rightPane}
+                  </div>
+                </div>
+              </div>`;
+          })
+          .join("");
+      }
+
+      // Holds the JSON currently shown in the extraction modal, for "Copy JSON".
+      let currentExtractionJson = "";
+
+      // Open the JSON popup for one conversation's extracted emails
+      // (the "view extracted JSON" button on the Email Dispatch History page).
+      async function viewExtractionJson(conversationId) {
+        const modal = document.getElementById("modal-extraction-json");
+        const loading = document.getElementById("extraction-json-loading");
+        const empty = document.getElementById("extraction-json-empty");
+        const errorBox = document.getElementById("extraction-json-error");
+        const body = document.getElementById("extraction-json-body");
+
+        modal.classList.remove("hidden");
+        empty.classList.add("hidden");
+        errorBox.classList.add("hidden");
+        body.classList.add("hidden");
+        body.textContent = "";
+        currentExtractionJson = "";
+        loading.classList.remove("hidden");
+
+        try {
+          const response = await fetch(
+            "/api/v1/email-extraction/conversations/" + conversationId + "/extractions"
+          );
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(extractErrorMessage(data, "Failed to load extracted JSON."));
+          }
+          const rows = await response.json();
+          loading.classList.add("hidden");
+          if (!rows.length) {
+            empty.classList.remove("hidden");
+            return;
+          }
+          currentExtractionJson = JSON.stringify(rows, null, 2);
+          body.textContent = currentExtractionJson;
+          body.classList.remove("hidden");
+        } catch (err) {
+          loading.classList.add("hidden");
+          errorBox.textContent = err.message;
+          errorBox.classList.remove("hidden");
+        }
+      }
+
+      // Copy the JSON currently shown in the extraction modal to the clipboard.
+      function copyExtractionJson(btn) {
+        if (!currentExtractionJson) return;
+        const done = () => {
+          const original = btn.innerHTML;
+          btn.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Copied';
+          setTimeout(() => {
+            btn.innerHTML = original;
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(currentExtractionJson).then(done).catch(() => {});
+        }
       }
 
       // Initialize App

@@ -17,7 +17,7 @@ from src.api.routes import dashboard
 from src.api.templating import STATIC_DIR
 from src.config import Settings, get_settings
 from src.integrations import get_database
-from src.modules import auth, email_delivery, email_draft, sample_data
+from src.modules import auth, email_delivery, email_draft, email_extraction, sample_data
 from src.modules.worker import start_email_worker, stop_email_worker
 from src.observability import configure_logging, get_logger
 
@@ -86,6 +86,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(email_draft.api_router)
     app.include_router(email_delivery.api_router)
     app.include_router(email_delivery.webhook_router)
+    app.include_router(email_extraction.api_router)
     app.include_router(auth.pages_router)
     app.include_router(dashboard.router)
 

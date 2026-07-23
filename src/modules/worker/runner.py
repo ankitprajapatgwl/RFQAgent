@@ -18,6 +18,8 @@ import threading
 
 from src.config import Settings
 from src.integrations.database import Database, get_database
+from src.integrations.llm import get_llm_client
+from src.modules.email_extraction import EmailExtractorAgent
 from src.modules.worker.service import EmailProcessingWorker
 from src.observability import get_logger
 
@@ -95,7 +97,8 @@ def start_email_worker(
     if not settings.worker_enabled:
         logger.info("Email worker disabled (worker_enabled=False); not starting.")
         return None
-    worker = EmailProcessingWorker(database or get_database())
+    extractor = EmailExtractorAgent(get_llm_client(), settings)
+    worker = EmailProcessingWorker(database or get_database(), extractor)
     runner = EmailWorkerRunner(worker, settings.worker_poll_interval_seconds)
     runner.start()
     return runner

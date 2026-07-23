@@ -2,8 +2,10 @@
 
 Exercises :meth:`EmailProcessingWorker.process_next` against a real in-memory
 SQLite database (no threads, no scheduling — those live in ``runner.py``):
-oldest-received-first ordering, mark-as-processed, sent emails ignored, and the
-empty-queue case.
+oldest-received-first ordering, mark-as-processed, sent emails ignored, the
+empty-queue case, and the failed-extraction path. The extractor is a trivial
+fake (Testing rule: unit tests never call a real LLM), so these tests stay
+about the worker's queue/status logic, not extraction.
 """
 
 from __future__ import annotations
@@ -12,6 +14,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy.orm import Session
 from src.config.settings import Settings
 from src.integrations.database import Database
 from src.modules.auth.repository import UserRepository
@@ -24,6 +27,19 @@ _DOMAIN = "mail.example.com"
 _BASE_TIME = datetime(2026, 1, 1, tzinfo=UTC)
 
 
+class _FakeExtractor:
+    """Stand-in extractor recording calls and returning a fixed outcome."""
+
+    def __init__(self, *, succeed: bool = True) -> None:
+        self._succeed = succeed
+        self.calls: list[uuid.UUID] = []
+
+    def extract_and_store(self, *, session: Session, email: Email) -> bool:
+        """Record the email handled and report the configured outcome."""
+        self.calls.append(email.id)
+        return self._succeed
+
+
 @pytest.fixture
 def database() -> Database:
     """A Database facade backed by a fresh in-memory SQLite schema."""
@@ -34,8 +50,8 @@ def database() -> Database:
 
 @pytest.fixture
 def worker(database: Database) -> EmailProcessingWorker:
-    """A worker drawing from the in-memory database."""
-    return EmailProcessingWorker(database)
+    """A worker drawing from the in-memory database, with a succeeding extractor."""
+    return EmailProcessingWorker(database, _FakeExtractor())
 
 
 def _seed_conversation_with_emails(database: Database) -> dict[str, uuid.UUID]:
@@ -137,3 +153,25 @@ def test_process_next_returns_false_when_queue_empty(
     worker: EmailProcessingWorker,
 ) -> None:
     assert worker.process_next() is False
+
+
+def test_process_next_marks_failed_when_extraction_fails(database: Database) -> None:
+    ids = _seed_conversation_with_emails(database)
+    worker = EmailProcessingWorker(database, _FakeExtractor(succeed=False))
+
+    # A tick still consumes the email (it is handled), but a failed extraction
+    # moves it to FAILED rather than PROCESSED so it is not retried forever.
+    assert worker.process_next() is True
+    assert _status(database, ids["first"]) == EmailProcessingStatus.FAILED.value
+    # The next-oldest pending reply is untouched and still awaits processing.
+    assert _status(database, ids["second"]) == EmailProcessingStatus.PENDING.value
+
+
+def test_process_next_passes_received_email_to_extractor(database: Database) -> None:
+    ids = _seed_conversation_with_emails(database)
+    extractor = _FakeExtractor()
+    worker = EmailProcessingWorker(database, extractor)
+
+    assert worker.process_next() is True
+    # The oldest received reply — not the sent email — is the one extracted.
+    assert extractor.calls == [ids["first"]]

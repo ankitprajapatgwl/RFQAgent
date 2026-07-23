@@ -19,9 +19,11 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from sqlalchemy import Engine, create_engine, inspect, text
+from sqlalchemy import Engine, create_engine, event, inspect, text
+from sqlalchemy.engine.interfaces import DBAPIConnection
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.pool import ConnectionPoolEntry
 
 from src.config import Settings, get_settings
 from src.observability import get_logger
@@ -52,6 +54,44 @@ _ADDITIVE_COLUMNS: dict[str, dict[str, str]] = {
     "users": {"phone_number": "VARCHAR(32)"},
     "email_messages": {"processing_status": "VARCHAR(16) NOT NULL DEFAULT 'pending'"},
 }
+
+
+def _configure_sqlite_connection(engine: Engine) -> None:
+    """Apply per-connection SQLite pragmas the app relies on.
+
+    * ``foreign_keys=ON`` — SQLite disables FK checks by default, so the
+      ``ondelete="CASCADE"`` constraints declared on every module's models are
+      inert without it. With it on, deleting a conversation cascades through its
+      emails, attachments and extractions at the database level — matching how
+      the same schema behaves on Postgres, where FK enforcement is always on.
+    * ``journal_mode=WAL`` — write-ahead logging lets a reader and a writer work
+      concurrently instead of blocking each other. This matters because the
+      background extraction worker holds its read transaction open across a
+      multi-second LLM call while inbound webhooks keep writing replies; under
+      the default rollback journal those writers would be locked out for the
+      whole call.
+    * ``busy_timeout=5000`` — wait up to 5s for a lock rather than failing
+      immediately with "database is locked" during the brief window the worker
+      commits its extraction.
+
+    All three are per-connection and no-ops on an in-memory test database, so
+    they are safe to issue on every connect.
+
+    Args:
+        engine: The SQLite engine to attach the pragma listener to.
+    """
+
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_pragma(
+        dbapi_connection: DBAPIConnection, _connection_record: ConnectionPoolEntry
+    ) -> None:
+        cursor = dbapi_connection.cursor()
+        try:
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA busy_timeout=5000")
+        finally:
+            cursor.close()
 
 
 class Database:
@@ -85,11 +125,13 @@ class Database:
         if settings.is_sqlite:
             db_path = settings.database_url.replace("sqlite:///", "")
             Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-            return create_engine(
+            engine = create_engine(
                 settings.database_url,
                 connect_args={"check_same_thread": False},
                 echo=settings.debug and settings.environment == "development",
             )
+            _configure_sqlite_connection(engine)
+            return engine
         return create_engine(
             settings.database_url,
             pool_pre_ping=True,

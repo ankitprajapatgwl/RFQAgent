@@ -313,6 +313,25 @@ class EmailDeliveryRepository:
         self._session.flush()
         return email
 
+    def mark_email_failed(self, email: Email) -> Email:
+        """Flag an email as failed so the worker does not retry it forever.
+
+        A permanently-bad email (one whose extraction fails deterministically)
+        would otherwise be re-picked every tick — it is always the oldest
+        pending one — and block the whole queue. Moving it to the terminal
+        ``failed`` state drains the queue while the failure itself is preserved
+        as a ``failed`` extraction record for manual review.
+
+        Args:
+            email: The attached email to update.
+
+        Returns:
+            The updated email.
+        """
+        email.processing_status = EmailProcessingStatus.FAILED.value
+        self._session.flush()
+        return email
+
     # ── Unmatched inbound ─────────────────────────────────────────────────
 
     def insert_unmatched(
