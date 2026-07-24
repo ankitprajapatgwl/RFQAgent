@@ -1,17 +1,19 @@
 """Prompt construction for sample email-drafting query generation.
 
-Reads the relevant skill spec (and, for RFQ, the project's field checklist)
+Reads the relevant skill spec (and, for RFQ, the structured field catalog)
 via the shared email-pattern catalog, so the generated sample data always
-tracks whatever the skill files currently require — no field list duplicated
-in code.
+tracks whatever the skill files/catalog currently require — no field list
+duplicated in code. For RFQ specifically, the model is required to return
+every field in :data:`~src.modules.email_patterns.RFQ_FIELD_CATALOG` under its
+exact key, so the generated JSON has a stable, predictable shape.
 """
 
 from __future__ import annotations
 
 from src.modules.email_patterns import (
     EMAIL_TYPE_LABELS,
+    RFQ_FIELD_CATALOG,
     EmailType,
-    read_rfq_fields,
     read_skill_spec,
 )
 
@@ -47,13 +49,24 @@ field names above.\
 _USER_PROMPT = "Generate one sample scenario now."
 
 _RFQ_EXTRA_TEMPLATE = """
-Additionally, use this full RFQ field checklist. Every field marked `*` is \
-required and MUST appear, populated with a plausible value, in your output:
+Additionally, populate the full RFQ field checklist below into "fields", \
+using EXACTLY these JSON keys — do not invent, rename, omit, or add any key. \
+Fields marked (required) MUST be populated with a specific, concrete value; \
+fields marked (optional) should also get a plausible fictional value when one \
+fits the scenario, or an empty string "" if it genuinely does not apply:
 
 ---
 {rfq_fields_text}
 ---
 """
+
+
+def _render_rfq_field_catalog() -> str:
+    """Render the RFQ field checklist as ``"key": Label (required|optional)`` lines."""
+    return "\n".join(
+        f'- "{field.name}": {field.label} ({"required" if field.required else "optional"})'
+        for field in RFQ_FIELD_CATALOG
+    )
 
 
 def build_prompts(email_type: EmailType) -> tuple[str, str]:
@@ -67,7 +80,7 @@ def build_prompts(email_type: EmailType) -> tuple[str, str]:
     """
     extra_context = ""
     if email_type is EmailType.RFQ:
-        extra_context = _RFQ_EXTRA_TEMPLATE.format(rfq_fields_text=read_rfq_fields())
+        extra_context = _RFQ_EXTRA_TEMPLATE.format(rfq_fields_text=_render_rfq_field_catalog())
 
     system_prompt = _SYSTEM_PROMPT_TEMPLATE.format(
         label=EMAIL_TYPE_LABELS[email_type],

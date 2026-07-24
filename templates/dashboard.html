@@ -235,17 +235,41 @@
               </button>
             </div>
 
-            <div class="relative">
-              <label class="block text-sm font-medium text-slate-700 mb-2"
-                >Selected / Generated Query:</label
-              >
-              <textarea
-                id="query-text"
-                rows="3"
-                class="w-full border border-slate-300 rounded-lg p-3 text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-y"
-                placeholder="Your query context will appear here..."
-                style="height: 350px;"
-              ></textarea>
+            <!-- The natural-language query text still drives drafting behind
+                 the scenes (it's what's sent to /api/v1/email-drafts), but is
+                 no longer shown/edited as plain text — only its structured
+                 fields (below) are surfaced to the user. -->
+            <input type="hidden" id="query-text" value="" />
+
+            <!-- Empty state, shown until a query has been generated/selected. -->
+            <div
+              id="query-context-empty"
+              class="text-center py-8 text-slate-400 text-sm border border-dashed border-slate-300 rounded-lg"
+            >
+              <i class="fa-solid fa-wand-magic-sparkles text-xl mb-2 block"></i>
+              Generate a sample query or select an existing one to see its fields here.
+            </div>
+
+            <!-- Generated Fields (JSON) — the structured field values behind
+                 the query (e.g. the full RFQ checklist for an RFQ Email).
+                 Hidden until a sample query with fields has been generated or
+                 selected. -->
+            <div id="sample-fields-section" class="hidden">
+              <div class="flex items-center justify-between mb-2">
+                <label class="text-sm font-medium text-slate-700">
+                  <i class="fa-solid fa-code text-indigo-600 mr-1"></i> Generated Fields (JSON)
+                </label>
+                <button
+                  onclick="copySampleFieldsJson(this)"
+                  class="text-xs text-slate-500 hover:text-slate-700 font-medium"
+                >
+                  <i class="fa-regular fa-copy mr-1"></i> Copy JSON
+                </button>
+              </div>
+              <pre
+                id="sample-fields-json"
+                class="bg-slate-900 text-slate-100 text-xs rounded-lg p-4 overflow-x-auto whitespace-pre max-h-72 overflow-y-auto"
+              ></pre>
             </div>
 
             <div class="mt-4 flex justify-end">
@@ -829,6 +853,11 @@
       // Holds the draft's id/status so Save/Verify/Send act on the right record.
       let currentDraft = null;
 
+      // Holds the JSON currently shown in the "Generated Fields" panel, for
+      // "Copy JSON" (the structured field values behind the current query,
+      // e.g. the full RFQ checklist for an RFQ Email).
+      let currentSampleFieldsJson = "";
+
       // FastAPI validation errors put a list of {msg, loc, ...} objects in
       // `detail` (422s) instead of a plain string; normalize both shapes.
       function extractErrorMessage(data, fallback) {
@@ -945,7 +974,7 @@
           const card = document.createElement("div");
           card.className =
             "p-4 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-all";
-          card.onclick = () => selectQuery(q.query_text);
+          card.onclick = () => selectQuery(q);
 
           const badgeEl = document.createElement("span");
           badgeEl.className =
@@ -967,9 +996,44 @@
       }
 
       // Query Management
-      function selectQuery(text) {
-        document.getElementById("query-text").value = text;
+      function selectQuery(query) {
+        document.getElementById("query-text").value = query.query_text;
+        renderSampleFields(query.fields);
         closeModal("modal-queries");
+      }
+
+      // Render (or hide) the "Generated Fields (JSON)" panel for the current
+      // query — populated by generateSampleQuery() and selectQuery().
+      function renderSampleFields(fields) {
+        const section = document.getElementById("sample-fields-section");
+        const body = document.getElementById("sample-fields-json");
+        const empty = document.getElementById("query-context-empty");
+        if (!fields || !Object.keys(fields).length) {
+          section.classList.add("hidden");
+          body.textContent = "";
+          currentSampleFieldsJson = "";
+          empty.classList.remove("hidden");
+          return;
+        }
+        currentSampleFieldsJson = JSON.stringify(fields, null, 2);
+        body.textContent = currentSampleFieldsJson;
+        section.classList.remove("hidden");
+        empty.classList.add("hidden");
+      }
+
+      // Copy the JSON currently shown in the "Generated Fields" panel.
+      function copySampleFieldsJson(btn) {
+        if (!currentSampleFieldsJson) return;
+        const done = () => {
+          const original = btn.innerHTML;
+          btn.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Copied';
+          setTimeout(() => {
+            btn.innerHTML = original;
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(currentSampleFieldsJson).then(done).catch(() => {});
+        }
       }
 
       // Generate a fresh sample query via the backend. The API generates,
@@ -1003,6 +1067,7 @@
             throw new Error(data.detail || "Failed to generate a sample query.");
           }
           document.getElementById("query-text").value = data.query_text;
+          renderSampleFields(data.fields);
         } catch (err) {
           alert(err.message);
         } finally {
@@ -1261,6 +1326,7 @@
           document.getElementById("email-type").value = "";
           document.getElementById("query-text").value = "";
           document.getElementById("email-attachments").value = "";
+          renderSampleFields(null);
           document
             .getElementById("email-verification-section")
             .classList.add("hidden");

@@ -14,7 +14,7 @@ import uuid
 from pydantic import ValidationError
 
 from src.integrations.llm import LLMClient, LLMGenerationError
-from src.modules.email_patterns import EmailType
+from src.modules.email_patterns import RFQ_FIELD_CATALOG, EmailType
 from src.modules.sample_data.exceptions import SampleQueryGenerationError
 from src.modules.sample_data.models import SavedSampleQuery
 from src.modules.sample_data.prompts import build_prompts
@@ -23,6 +23,32 @@ from src.modules.sample_data.schemas import GeneratedSample
 from src.observability import get_logger
 
 logger = get_logger(__name__)
+
+# Values the model sometimes emits in place of a real answer — treated the
+# same as a missing field when checking required RFQ fields.
+_PLACEHOLDER_VALUES = {"", "tbd", "n/a", "na", "todo", "unknown", "none"}
+
+
+def _validate_rfq_fields(fields: dict[str, str]) -> None:
+    """Ensure every required RFQ field has a concrete, non-placeholder value.
+
+    Args:
+        fields: The "fields" dict the model returned.
+
+    Raises:
+        SampleQueryGenerationError: If any required
+            :data:`~src.modules.email_patterns.RFQ_FIELD_CATALOG` field is
+            missing, blank, or a placeholder like "TBD"/"N/A".
+    """
+    missing = [
+        field.label
+        for field in RFQ_FIELD_CATALOG
+        if field.required and str(fields.get(field.name, "")).strip().lower() in _PLACEHOLDER_VALUES
+    ]
+    if missing:
+        raise SampleQueryGenerationError(
+            "The model's response was missing required RFQ fields: " + ", ".join(missing)
+        )
 
 
 def _parse_json_object(raw: str) -> dict[str, object]:
@@ -73,8 +99,10 @@ class SampleQueryService:
             The saved :class:`SavedSampleQuery`.
 
         Raises:
-            SampleQueryGenerationError: If the LLM call fails or its response
-                does not match the expected shape.
+            SampleQueryGenerationError: If the LLM call fails, its response
+                does not match the expected shape, or (for RFQ) a required
+                field from :data:`~src.modules.email_patterns.RFQ_FIELD_CATALOG`
+                is missing or left as a placeholder.
         """
         system_prompt, user_prompt = build_prompts(email_type)
         try:
@@ -90,6 +118,9 @@ class SampleQueryService:
             raise SampleQueryGenerationError(
                 "The model's response did not match the expected schema."
             ) from exc
+
+        if email_type is EmailType.RFQ:
+            _validate_rfq_fields(generated.fields)
 
         return self._repository.save(
             user_id=user_id,

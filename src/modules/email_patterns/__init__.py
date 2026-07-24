@@ -11,14 +11,22 @@ where their ``SKILL.md`` files live is a single fact, owned once here, rather
 than duplicated (and risking drift) in every module that needs it.
 """
 
-from src.modules.email_patterns.catalog import EMAIL_TYPE_LABELS, read_rfq_fields, read_skill_spec
+from src.modules.email_patterns.catalog import (
+    EMAIL_TYPE_LABELS,
+    RFQ_FIELD_CATALOG,
+    RfqField,
+    read_rfq_fields,
+    read_skill_spec,
+)
 from src.modules.email_patterns.enums import EmailType
 from src.modules.email_patterns.schemas import EmailTypeOption
 
 __all__ = [
     "EMAIL_TYPE_LABELS",
+    "RFQ_FIELD_CATALOG",
     "EmailType",
     "EmailTypeOption",
+    "RfqField",
     "read_rfq_fields",
     "read_skill_spec",
 ]

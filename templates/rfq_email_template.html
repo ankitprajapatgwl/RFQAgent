@@ -1,0 +1,351 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Request for Quote (RFQ)</title>
+    <style type="text/css">
+      body {
+        margin: 0 !important;
+        padding: 0 !important;
+        min-width: 100% !important;
+      }
+      table {
+        border-spacing: 0;
+        border-collapse: collapse;
+      }
+      td, p, span {
+        font-family: Arial, sans-serif;
+        color: #333333;
+      }
+      img {
+        border: 0;
+        line-height: 100%;
+        outline: none;
+        text-decoration: none;
+        display: block;
+      }
+      a {
+        color: #0056b3;
+        text-decoration: none;
+      }
+      @media screen and (max-width: 650px) {
+        .main {
+          width: 100% !important;
+          border-radius: 0 !important;
+          border: none !important;
+        }
+        .inner-padding {
+          padding: 15px !important;
+        }
+        .data-table th,
+        .data-table td {
+          display: block !important;
+          width: 100% !important;
+          box-sizing: border-box;
+        }
+        .data-table th {
+          border-bottom: none !important;
+          padding-bottom: 2px !important;
+        }
+        .data-table td {
+          padding-top: 2px !important;
+          padding-bottom: 15px !important;
+        }
+      }
+    </style>
+  </head>
+  <body style="margin: 0; padding: 0; min-width: 100%; background-color: #f4f4f4;">
+    <div style="width: 100%; table-layout: fixed; background-color: #f4f4f4; padding-bottom: 40px;">
+      <table class="main" width="650" cellpadding="0" cellspacing="0" style="background-color: #ffffff; margin: 0 auto; width: 100%; max-width: 650px; border-spacing: 0; border: 1px solid #e0e0e0; border-radius: 4px; overflow: hidden;" border="0">
+        <!-- Header Section -->
+        <tr>
+          <td bgcolor="#004b87" style="padding: 20px 30px; text-align: center">
+            <!-- Replace placeholder with your logo if needed -->
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px">
+              Request for Quotation (RFQ)
+            </h1>
+          </td>
+        </tr>
+
+        <!-- Body Section -->
+        <tr>
+          <td class="inner-padding" style="padding: 30px; font-family: Arial, sans-serif; color: #333333;">
+            <!-- BACKEND: Process conditional blocks below. Replace {{variable}} placeholders with data. Remove entire section if condition is false. -->
+
+            <!-- * Required: Overview / Cover Letter Context (Usually present even if short) -->
+            <p style="margin: 0 0 15px 0; font-size: 14px; line-height: 1.5; color: #333333;">Dear Valued Supplier,</p>
+            <p style="margin: 0 0 15px 0; font-size: 14px; line-height: 1.5; color: #333333;">
+              We invite you to submit a quotation for the products/services detailed below. Please review the requirements carefully and provide your best offer.
+            </p>
+
+            <!-- Optional: Cover Letter / Invitation text -->
+            <!-- BEGIN-IF: coverLetter -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-spacing: 0; border-collapse: collapse;">
+              <tr>
+                <td style="padding-bottom: 20px; font-family: Arial, sans-serif; color: #333333;">
+                  <h2 style="font-size: 18px; margin: 0 0 10px 0; color: #2c3e50; border-bottom: 2px solid #eeeeee; padding-bottom: 5px;">Invitation Summary</h2>
+                  <p style="margin: 0 0 15px 0; font-size: 14px; line-height: 1.5; color: #333333;">
+                    <strong>Cover Letter:</strong> {{coverLetter}}
+                  </p>
+                </td>
+              </tr>
+            </table>
+            <!-- END-IF: coverLetter -->
+
+            <!-- Optional: Overview -->
+            <!-- BEGIN-IF: overview -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-spacing: 0; border-collapse: collapse;">
+              <tr>
+                <td style="padding-bottom: 20px; font-family: Arial, sans-serif; color: #333333;">
+                  <h2 style="font-size: 18px; margin: 0 0 10px 0; color: #2c3e50; border-bottom: 2px solid #eeeeee; padding-bottom: 5px;">Project Overview</h2>
+                  <p style="margin: 0 0 15px 0; font-size: 14px; line-height: 1.5; color: #333333;">{{overview}}</p>
+                </td>
+              </tr>
+            </table>
+            <!-- END-IF: overview -->
+
+            <!-- General Information Section -->
+            <h2 style="font-size: 18px; margin: 0 0 10px 0; color: #2c3e50; border-bottom: 2px solid #eeeeee; padding-bottom: 5px;">General Information</h2>
+            <table class="data-table" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; margin-bottom: 20px; width: 100%;"">
+              <!-- * Required: RFQ Timeline -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">RFQ Issue Date:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{rfqIssueDate}}</td>
+              </tr>
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">* Submission Deadline:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{submissionDeadline}}</td>
+              </tr>
+
+              <!-- Optional: Buyer Information -->
+              <!-- BEGIN-IF: buyerInfo -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Buyer Company:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{buyerCompanyName}}</td>
+              </tr>
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Contact Person:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{contactName}}, {{contactEmail}}</td>
+              </tr>
+              <!-- END-IF: buyerInfo -->
+
+              <!-- Optional: Supplier Instructions -->
+              <!-- BEGIN-IF: supplierInstructions -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Supplier Instructions:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{supplierInstructions}}</td>
+              </tr>
+              <!-- END-IF: supplierInstructions -->
+            </table>
+
+            <!-- Core Requirements Section -->
+            <h2 style="font-size: 18px; margin: 0 0 10px 0; color: #2c3e50; border-bottom: 2px solid #eeeeee; padding-bottom: 5px;">Requirements & Specifications</h2>
+            <table class="data-table" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; margin-bottom: 20px; width: 100%;">
+              <!-- Optional: Scope of Supply -->
+              <!-- BEGIN-IF: scopeOfSupply -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Scope of Supply:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{scopeOfSupply}}</td>
+              </tr>
+              <!-- END-IF: scopeOfSupply -->
+
+              <!-- * Required: Product / Service Requirements -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">* Product/Service Req:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{productServiceReq}}</td>
+              </tr>
+
+              <!-- * Required: Technical Specifications -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">* Technical Specs:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{technicalSpecs}}</td>
+              </tr>
+
+              <!-- * Required: Quantity / Volume -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">* Quantity / Volume:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{requiredQuantity}} {{unitOfMeasure}}</td>
+              </tr>
+
+              <!-- * Required: Certifications and Compliance (Product) -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">* Product Certifications:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{productCertifications}}</td>
+              </tr>
+
+              <!-- Optional: Line Items / BOQ -->
+              <!-- BEGIN-IF: lineItems -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Line Items (BOQ):</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{lineItems}}</td>
+              </tr>
+              <!-- END-IF: lineItems -->
+            </table>
+
+            <!-- Commercial & Delivery Section -->
+            <h2 style="font-size: 18px; margin: 0 0 10px 0; color: #2c3e50; border-bottom: 2px solid #eeeeee; padding-bottom: 5px;">Commercial & Delivery Details</h2>
+            <table class="data-table" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; margin-bottom: 20px; width: 100%;">
+              <!-- * Required: Pricing Schedule / Quotation Form -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">* Pricing Schedule:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{pricingSchedule}}</td>
+              </tr>
+
+              <!-- Optional: Cost Breakdown -->
+              <!-- BEGIN-IF: costBreakdown -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Cost Breakdown:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{costBreakdown}}</td>
+              </tr>
+              <!-- END-IF: costBreakdown -->
+
+              <!-- * Required: Commercial Terms -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">* Commercial Terms:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{commercialTerms}}</td>
+              </tr>
+
+              <!-- * Required: Delivery Requirements -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">* Delivery Req:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{deliveryRequirements}}</td>
+              </tr>
+
+              <!-- * Required: Logistics & Shipping Requirements -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">* Logistics & Shipping:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{logisticsShipping}}</td>
+              </tr>
+            </table>
+
+            <!-- Supplier Qualifications & Compliance Section -->
+            <h2 style="font-size: 18px; margin: 0 0 10px 0; color: #2c3e50; border-bottom: 2px solid #eeeeee; padding-bottom: 5px;">Supplier Information Needed</h2>
+            <table class="data-table" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; margin-bottom: 20px; width: 100%;">
+              <!-- * Required: Supplier Information & Company Profile -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">* Supplier Info & Profile:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{supplierInfo}}</td>
+              </tr>
+
+              <!-- * Required: Quality Certifications (Supplier) -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">* Quality Certifications:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{qualityCertifications}}</td>
+              </tr>
+
+              <!-- * Required: Compliance Questionnaire -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">* Compliance Details:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{complianceDetails}}</td>
+              </tr>
+
+              <!-- Optional: Manufacturing Capacity -->
+              <!-- BEGIN-IF: capacity -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Manufacturing Capacity:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{capacity}}</td>
+              </tr>
+              <!-- END-IF: capacity -->
+
+              <!-- Optional: Sustainability / ESG -->
+              <!-- BEGIN-IF: esgRequirements -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Sustainability / ESG:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{esgRequirements}}</td>
+              </tr>
+              <!-- END-IF: esgRequirements -->
+
+              <!-- Optional: Risk Assessment -->
+              <!-- BEGIN-IF: riskAssessment -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Risk Assessment:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{riskAssessment}}</td>
+              </tr>
+              <!-- END-IF: riskAssessment -->
+            </table>
+
+            <!-- Attachments & Additional Information Section -->
+            <h2 style="font-size: 18px; margin: 0 0 10px 0; color: #2c3e50; border-bottom: 2px solid #eeeeee; padding-bottom: 5px;">Additional Information</h2>
+            <table class="data-table" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; margin-bottom: 20px; width: 100%;">
+              <!-- Optional: Required Attachments (from supplier) -->
+              <!-- BEGIN-IF: requiredAttachments -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Required Attachments:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{requiredAttachments}}</td>
+              </tr>
+              <!-- END-IF: requiredAttachments -->
+
+              <!-- Optional: Buyer Attachments -->
+              <!-- BEGIN-IF: buyerAttachments -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Attachments Provided:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{buyerAttachments}}</td>
+              </tr>
+              <!-- END-IF: buyerAttachments -->
+
+              <!-- Optional: Q&A -->
+              <!-- BEGIN-IF: qaDetails -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Questions & Clarifications:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{qaDetails}}</td>
+              </tr>
+              <!-- END-IF: qaDetails -->
+
+              <!-- Optional: Alternative Offers -->
+              <!-- BEGIN-IF: allowAlternatives -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Alternative Offers:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{alternativeOffers}}</td>
+              </tr>
+              <!-- END-IF: allowAlternatives -->
+            </table>
+
+            <!-- Legal & Declarations Section -->
+            <h2 style="font-size: 18px; margin: 0 0 10px 0; color: #2c3e50; border-bottom: 2px solid #eeeeee; padding-bottom: 5px;">Legal & Acknowledgements</h2>
+            <table class="data-table" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; margin-bottom: 0; width: 100%;">
+              <!-- Optional: Terms & Conditions -->
+              <!-- BEGIN-IF: termsAndConditions -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Terms & Conditions:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{termsAndConditions}}</td>
+              </tr>
+              <!-- END-IF: termsAndConditions -->
+
+              <!-- Optional: Confidentiality / NDA -->
+              <!-- BEGIN-IF: ndaRequired -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Confidentiality (NDA):</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">{{ndaRequired}}</td>
+              </tr>
+              <!-- END-IF: ndaRequired -->
+
+              <!-- Optional: Supplier Declaration / Signature -->
+              <!-- BEGIN-IF: signatureRequired -->
+              <tr>
+                <th style="width: 35%; padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; background-color: #f9f9f9; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Declaration & Signature:</th>
+                <td style="padding: 10px; text-align: left; border-bottom: 1px solid #eeeeee; font-size: 14px; vertical-align: top; font-family: Arial, sans-serif; color: #333333;">An authorized signature is required on the final submission.</td>
+              </tr>
+              <!-- END-IF: signatureRequired -->
+            </table>
+            <p style="margin: 0 0 15px 0; font-size: 14px; line-height: 1.5; color: #333333;">
+              Thank you,<br />
+              <strong>{{companyName}} Procurement Team</strong>
+            </p>
+          </td>
+        </tr>
+
+        <!-- Footer Section -->
+        <tr>
+          <td bgcolor="#f9f9f9" style="padding: 20px; text-align: center; border-top: 1px solid #e0e0e0; font-family: Arial, sans-serif;">
+            <p style="font-size: 12px; color: #888888; margin: 0; line-height: 1.5;">
+              This is an automated message from {{companyName}}. Please do not reply directly unless instructed above.<br />
+              {{companyAddress}} | {{companyWebsite}}
+            </p>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

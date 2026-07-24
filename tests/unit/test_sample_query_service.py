@@ -7,11 +7,12 @@ same pattern used by the auth service's tests.
 """
 
 import json
+import re
 import uuid
 
 import pytest
 from src.integrations.llm import LLMGenerationError
-from src.modules.email_patterns import EMAIL_TYPE_LABELS, EmailType
+from src.modules.email_patterns import EMAIL_TYPE_LABELS, RFQ_FIELD_CATALOG, EmailType
 from src.modules.sample_data.exceptions import SampleQueryGenerationError
 from src.modules.sample_data.prompts import build_prompts
 from src.modules.sample_data.repository import SampleQueryRepository
@@ -20,6 +21,14 @@ from src.modules.sample_data.service import SampleQueryService
 _VALID_PAYLOAD = {
     "fields": {"supplier_name": "Acme Supplies", "product": "Steel Bolts"},
     "query_text": "Please draft an email to Acme Supplies about steel bolts.",
+}
+
+# A fully populated RFQ "fields" dict — every catalog field present, so it
+# satisfies the RFQ-specific required-field validation regardless of type.
+_VALID_RFQ_FIELDS = {field.name: f"Sample value for {field.label}" for field in RFQ_FIELD_CATALOG}
+_VALID_RFQ_PAYLOAD = {
+    "fields": _VALID_RFQ_FIELDS,
+    "query_text": "Please draft an RFQ email covering every field above.",
 }
 
 
@@ -103,7 +112,7 @@ def test_generate_and_save_raises_when_llm_call_fails(
 def test_list_saved_returns_only_matching_user_and_type(
     sample_query_repository: SampleQueryRepository,
 ) -> None:
-    service = _service(sample_query_repository, json.dumps(_VALID_PAYLOAD))
+    service = _service(sample_query_repository, json.dumps(_VALID_RFQ_PAYLOAD))
     user_id = uuid.uuid4()
     other_user_id = uuid.uuid4()
 
@@ -121,7 +130,7 @@ def test_list_saved_returns_only_matching_user_and_type(
 def test_list_saved_without_email_type_returns_complete_history(
     sample_query_repository: SampleQueryRepository,
 ) -> None:
-    service = _service(sample_query_repository, json.dumps(_VALID_PAYLOAD))
+    service = _service(sample_query_repository, json.dumps(_VALID_RFQ_PAYLOAD))
     user_id = uuid.uuid4()
     other_user_id = uuid.uuid4()
 
@@ -146,7 +155,7 @@ def test_list_saved_without_email_type_returns_complete_history(
 def test_list_saved_orders_most_recent_first(
     sample_query_repository: SampleQueryRepository,
 ) -> None:
-    service = _service(sample_query_repository, json.dumps(_VALID_PAYLOAD))
+    service = _service(sample_query_repository, json.dumps(_VALID_RFQ_PAYLOAD))
     user_id = uuid.uuid4()
 
     first = service.generate_and_save(user_id=user_id, email_type=EmailType.RFQ)
@@ -176,3 +185,64 @@ def test_build_prompts_includes_rfq_field_checklist_only_for_rfq() -> None:
     assert "RFQ field checklist" in rfq_system_prompt
     assert "Cover Letter / Invitation" in rfq_system_prompt
     assert "RFQ field checklist" not in other_system_prompt
+
+
+def test_build_prompts_rfq_lists_every_catalog_key_with_its_required_flag() -> None:
+    rfq_system_prompt, _ = build_prompts(EmailType.RFQ)
+
+    for field in RFQ_FIELD_CATALOG:
+        assert f'"{field.name}"' in rfq_system_prompt
+    assert '"rfq_timeline": RFQ Timeline (required)' in rfq_system_prompt
+    assert '"cost_breakdown": Cost Breakdown (Optional) (optional)' in rfq_system_prompt
+
+
+def test_generate_and_save_persists_a_fully_populated_rfq_response(
+    sample_query_repository: SampleQueryRepository,
+) -> None:
+    service = _service(sample_query_repository, json.dumps(_VALID_RFQ_PAYLOAD))
+
+    saved = service.generate_and_save(user_id=uuid.uuid4(), email_type=EmailType.RFQ)
+
+    assert saved.fields == _VALID_RFQ_FIELDS
+    for field in RFQ_FIELD_CATALOG:
+        assert field.name in saved.fields
+
+
+@pytest.mark.parametrize("required_field", [f for f in RFQ_FIELD_CATALOG if f.required])
+def test_generate_and_save_raises_when_a_required_rfq_field_is_missing(
+    sample_query_repository: SampleQueryRepository,
+    required_field,
+) -> None:
+    incomplete_fields = dict(_VALID_RFQ_FIELDS)
+    del incomplete_fields[required_field.name]
+    payload = {"fields": incomplete_fields, "query_text": "A query missing one required field."}
+    service = _service(sample_query_repository, json.dumps(payload))
+
+    with pytest.raises(SampleQueryGenerationError, match=re.escape(required_field.label)):
+        service.generate_and_save(user_id=uuid.uuid4(), email_type=EmailType.RFQ)
+
+
+@pytest.mark.parametrize("placeholder", ["TBD", "N/A", "todo", "  ", "Unknown"])
+def test_generate_and_save_raises_when_a_required_rfq_field_is_a_placeholder(
+    sample_query_repository: SampleQueryRepository,
+    placeholder: str,
+) -> None:
+    fields_with_placeholder = dict(_VALID_RFQ_FIELDS)
+    fields_with_placeholder["rfq_timeline"] = placeholder
+    payload = {"fields": fields_with_placeholder, "query_text": "A query with a placeholder."}
+    service = _service(sample_query_repository, json.dumps(payload))
+
+    with pytest.raises(SampleQueryGenerationError, match="RFQ Timeline"):
+        service.generate_and_save(user_id=uuid.uuid4(), email_type=EmailType.RFQ)
+
+
+def test_generate_and_save_ignores_rfq_catalog_for_other_email_types(
+    sample_query_repository: SampleQueryRepository,
+) -> None:
+    # A generic (non-RFQ-shaped) payload must still succeed for other types —
+    # the RFQ catalog validation only applies when email_type is RFQ.
+    service = _service(sample_query_repository, json.dumps(_VALID_PAYLOAD))
+
+    saved = service.generate_and_save(user_id=uuid.uuid4(), email_type=EmailType.NEGOTIATION)
+
+    assert saved.fields == _VALID_PAYLOAD["fields"]
