@@ -1,0 +1,198 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RFQ Negotiation & Review</title>
+
+    <!--[if mso]>
+    <style type="text/css">
+        body, table, td, div, p, a { font-family: Arial, sans-serif !important; }
+    </style>
+    <![endif]-->
+    <style type="text/css">
+        body {
+            margin: 0 !important;
+            padding: 0 !important;
+            min-width: 100% !important;
+        }
+        table {
+            border-spacing: 0;
+            border-collapse: collapse;
+        }
+        td, p, span, a {
+            font-family: Arial, sans-serif;
+        }
+        img {
+            border: 0;
+            line-height: 100%;
+            outline: none;
+            text-decoration: none;
+            display: block;
+        }
+        a {
+            color: #0056b3;
+            text-decoration: none;
+        }
+
+        /* Responsive styles */
+        @media screen and (max-width: 650px) {
+            .main {
+                width: 100% !important;
+                border-radius: 0 !important;
+                border: none !important;
+                margin-top: 0 !important;
+            }
+            .inner-padding {
+                padding: 20px !important;
+            }
+            .data-table th, .data-table td {
+                display: block !important;
+                width: 100% !important;
+                box-sizing: border-box;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+                border-bottom: 1px solid #eeeeee !important;
+            }
+            .data-table th {
+                padding-bottom: 2px !important;
+                border-bottom: none !important;
+            }
+            .data-table td {
+                padding-top: 2px !important;
+                padding-bottom: 15px !important;
+            }
+            .data-table tr:last-child td {
+                border-bottom: none !important;
+            }
+        }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; min-width: 100%; background-color: #f4f4f4;">
+    <div style="width: 100%; table-layout: fixed; background-color: #f4f4f4; padding-bottom: 40px;">
+        <!--[if mso]>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+        <td align="center" style="padding: 0;">
+        <![endif]-->
+        <table class="main" width="650" cellpadding="0" cellspacing="0" border="0" align="center" style="background-color: #ffffff; margin: 20px auto 0 auto; width: 100%; max-width: 650px; border: 1px solid #e0e0e0; border-radius: 4px; overflow: hidden;">
+            <!-- Header Section -->
+            <tr>
+                <td bgcolor="#004b87" style="padding: 20px 30px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-family: Arial, sans-serif;">RFQ Review & Counter-Offer</h1>
+                </td>
+            </tr>
+
+            <!-- Body Section -->
+            <tr>
+                <td class="inner-padding" style="padding: 30px; font-family: Arial, sans-serif; color: #333333;">
+                    <!-- BACKEND: Process conditional blocks below. Replace {{variable}} placeholders with data. Remove entire section if condition is false. -->
+                    <p style="margin: 0 0 15px 0; font-size: 15px; line-height: 1.6; color: #333333;">Dear Valued Supplier,</p>
+                    <p style="margin: 0 0 15px 0; font-size: 15px; line-height: 1.6; color: #333333;">Thank you for submitting your quotation for <strong>{{rfqReference}}</strong>. Our team has carefully reviewed your proposal. We appreciate the effort you put into your submission and are highly interested in moving forward with your company.</p>
+
+                    <p style="margin: 0 0 15px 0; font-size: 15px; line-height: 1.6; color: #333333;">Before we can finalize an agreement and issue a Purchase Order, we would like to discuss a few specific adjustments to your proposal to better align with our project targets.</p>
+
+                    <!-- Negotiation Box highlighting requested adjustments -->
+                    <h2 style="font-size: 18px; margin: 0 0 10px 0; color: #2c3e50; border-bottom: 2px solid #eeeeee; padding-bottom: 5px; font-family: Arial, sans-serif;">Requested Adjustments</h2>
+                    <div style="background-color: #fffaf0; border-left: 4px solid #f39c12; padding: 20px; margin-bottom: 25px;">
+                        <table class="data-table" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: collapse;">
+
+                            <!-- Optional: Target Pricing Negotiation -->
+                            <!-- BEGIN-IF: targetPrice -->
+                            <tr>
+                                <th style="width: 40%; padding: 10px 10px; text-align: left; font-size: 14px; border-bottom: 1px solid #eeeeee; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Pricing Target:</th>
+                                <td style="padding: 10px 10px; text-align: left; font-size: 14px; border-bottom: 1px solid #eeeeee; vertical-align: top; color: #1a1a1a; font-family: Arial, sans-serif;">Your quote: {{originalQuotedPrice}}<br />
+                                <span style="color: #004b87; font-weight: bold;">Our Target: {{targetPrice}}</span></td>
+                            </tr>
+                            <!-- END-IF: targetPrice -->
+
+                            <!-- Optional: Volume/Quantity Changes -->
+                            <!-- BEGIN-IF: volumeAdjustment -->
+                            <tr>
+                                <th style="width: 40%; padding: 10px 10px; text-align: left; font-size: 14px; border-bottom: 1px solid #eeeeee; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Volume / Quantity:</th>
+                                <td style="padding: 10px 10px; text-align: left; font-size: 14px; border-bottom: 1px solid #eeeeee; vertical-align: top; color: #1a1a1a; font-family: Arial, sans-serif;">If we increase the volume to <strong>{{newQuantity}}</strong>, can you provide a volume discount?</td>
+                            </tr>
+                            <!-- END-IF: volumeAdjustment -->
+
+                            <!-- Optional: Commercial Terms -->
+                            <!-- BEGIN-IF: paymentTerms -->
+                            <tr>
+                                <th style="width: 40%; padding: 10px 10px; text-align: left; font-size: 14px; border-bottom: 1px solid #eeeeee; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Payment Terms:</th>
+                                <td style="padding: 10px 10px; text-align: left; font-size: 14px; border-bottom: 1px solid #eeeeee; vertical-align: top; color: #1a1a1a; font-family: Arial, sans-serif;">Your proposal: {{quotedTerms}}<br />
+                                <span style="color: #004b87; font-weight: bold;">Requested: {{requestedTerms}}</span></td>
+                            </tr>
+                            <!-- END-IF: paymentTerms -->
+
+                            <!-- Optional: Delivery/Lead Time -->
+                            <!-- BEGIN-IF: leadTime -->
+                            <tr>
+                                <th style="width: 40%; padding: 10px 10px; text-align: left; font-size: 14px; border-bottom: 1px solid #eeeeee; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Delivery / Lead Time:</th>
+                                <td style="padding: 10px 10px; text-align: left; font-size: 14px; border-bottom: 1px solid #eeeeee; vertical-align: top; color: #1a1a1a; font-family: Arial, sans-serif;">Your proposal: {{quotedLeadTime}}<br />
+                                <span style="color: #004b87; font-weight: bold;">Requested: Can this be expedited to {{targetDate}}?</span></td>
+                            </tr>
+                            <!-- END-IF: leadTime -->
+
+                            <!-- Optional: General Clarifications / Value Engineering -->
+                            <!-- BEGIN-IF: clarifications -->
+                            <tr>
+                                <th style="width: 40%; padding: 10px 10px; text-align: left; font-size: 14px; border-bottom: 1px solid #eeeeee; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Technical/Scope Note:</th>
+                                <td style="padding: 10px 10px; text-align: left; font-size: 14px; border-bottom: 1px solid #eeeeee; vertical-align: top; color: #1a1a1a; font-family: Arial, sans-serif;">{{clarifications}}</td>
+                            </tr>
+                            <!-- END-IF: clarifications -->
+                        </table>
+                    </div>
+
+                    <h2 style="font-size: 18px; margin: 0 0 10px 0; color: #2c3e50; border-bottom: 2px solid #eeeeee; padding-bottom: 5px; font-family: Arial, sans-serif;">Next Steps</h2>
+                    <p style="margin: 0 0 15px 0; font-size: 15px; line-height: 1.6; color: #333333;">Please review these requests with your team. We value our partnership and hope we can reach a mutually beneficial agreement.</p>
+                    <p style="margin: 0 0 15px 0; font-size: 15px; line-height: 1.6; color: #333333;"><strong>Action Required:</strong> Kindly reply to this email by <strong>{{responseDeadline}}</strong> confirming if you can accept these adjustments, or please submit a revised quotation outlining your best counter-offer.</p>
+
+                    <!-- Optional: Link to portal for revised quote upload -->
+                    <!-- BEGIN-IF: portalLink -->
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                            <td align="center" style="padding: 10px 0 20px 0;">
+                                <!--[if mso]>
+                                <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{portalLink}}" style="height:44px;v-text-anchor:middle;width:220px;" arcsize="9%" fillcolor="#004b87" stroke="f">
+                                <w:anchorlock/>
+                                <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">Submit Revised Quote</center>
+                                </v:roundrect>
+                                <![endif]-->
+                                <!--[if !mso]><!-->
+                                <a href="{{portalLink}}" target="_blank" style="display: inline-block; padding: 12px 24px; background-color: #004b87; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 16px; font-family: Arial, sans-serif;">Submit Revised Quote</a>
+                                <!--<![endif]-->
+                            </td>
+                        </tr>
+                    </table>
+                    <!-- END-IF: portalLink -->
+
+                    <!-- Optional: Request for Meeting -->
+                    <!-- BEGIN-IF: meetingRequest -->
+                    <p style="margin: 0 0 15px 0; font-size: 15px; line-height: 1.6; color: #333333;">If you prefer to discuss these points over a quick call, please let us know your availability for this week.</p>
+                    <!-- END-IF: meetingRequest -->
+
+                    <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 30px 0;" />
+
+                    <p style="margin: 0 0 15px 0; font-size: 15px; line-height: 1.6; color: #333333;">We look forward to your response and to hopefully finalizing this award.<br /><br />
+                    Sincerely,<br /><strong>{{companyName}} Procurement Team</strong></p>
+                </td>
+            </tr>
+
+            <!-- Footer Section -->
+            <tr>
+                <td bgcolor="#f9f9f9" style="padding: 20px; text-align: center; border-top: 1px solid #e0e0e0; font-family: Arial, sans-serif;">
+                    <p style="font-size: 12px; color: #888888; margin: 0; line-height: 1.5;">
+                        This communication is regarding an ongoing Request for Quotation. Please ensure all revised documents reference the original RFQ number.<br />
+                        {{companyAddress}} | <a href="{{companyWebsite}}" style="color: #888888; text-decoration: underline;">{{companyWebsite}}</a>
+                    </p>
+                </td>
+            </tr>
+        </table>
+        <!--[if mso]>
+        </td>
+        </tr>
+        </table>
+        <![endif]-->
+    </div>
+</body>
+</html>

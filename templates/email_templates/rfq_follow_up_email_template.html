@@ -1,0 +1,173 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reminder: Request for Quote (RFQ)</title>
+
+    <!--[if mso]>
+    <style type="text/css">
+        body, table, td, div, p, a { font-family: Arial, sans-serif !important; }
+    </style>
+    <![endif]-->
+    <style type="text/css">
+        body {
+            margin: 0 !important;
+            padding: 0 !important;
+            min-width: 100% !important;
+        }
+        table {
+            border-spacing: 0;
+            border-collapse: collapse;
+        }
+        td, p, span, a {
+            font-family: Arial, sans-serif;
+        }
+        img {
+            border: 0;
+            line-height: 100%;
+            outline: none;
+            text-decoration: none;
+            display: block;
+        }
+        a {
+            color: #0056b3;
+            text-decoration: none;
+        }
+
+        /* Responsive styles */
+        @media screen and (max-width: 650px) {
+            .main {
+                width: 100% !important;
+                border-radius: 0 !important;
+                border: none !important;
+                margin-top: 0 !important;
+            }
+            .inner-padding {
+                padding: 20px !important;
+            }
+            .data-table th, .data-table td {
+                display: block !important;
+                width: 100% !important;
+                box-sizing: border-box;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+            }
+            .data-table th {
+                padding-bottom: 2px !important;
+            }
+            .data-table td {
+                padding-top: 2px !important;
+                padding-bottom: 15px !important;
+            }
+        }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; min-width: 100%; background-color: #f4f4f4;">
+    <div style="width: 100%; table-layout: fixed; background-color: #f4f4f4; padding-bottom: 40px;">
+        <!--[if mso]>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+        <td align="center" style="padding: 0;">
+        <![endif]-->
+        <table class="main" width="650" cellpadding="0" cellspacing="0" border="0" align="center" style="background-color: #ffffff; margin: 20px auto 0 auto; width: 100%; max-width: 650px; border: 1px solid #e0e0e0; border-radius: 4px; overflow: hidden;">
+            <!-- Header Section -->
+            <tr>
+                <td bgcolor="#004b87" style="padding: 20px 30px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-family: Arial, sans-serif;">Reminder: RFQ Action Required</h1>
+                </td>
+            </tr>
+
+            <!-- Body Section -->
+            <tr>
+                <td class="inner-padding" style="padding: 30px; font-family: Arial, sans-serif; color: #333333;">
+                    <!-- BACKEND: Process conditional blocks below. Replace {{variable}} placeholders with data. Remove entire section if condition is false. -->
+                    <p style="margin: 0 0 15px 0; font-size: 15px; line-height: 1.6; color: #333333;">Dear Valued Supplier,</p>
+                    <p style="margin: 0 0 15px 0; font-size: 15px; line-height: 1.6; color: #333333;">This is a polite reminder regarding our recent Request for Quotation (RFQ) sent on <strong>{{originalIssueDate}}</strong>. The deadline to submit your proposal is quickly approaching.</p>
+
+                    <p style="margin: 0 0 15px 0; font-size: 15px; line-height: 1.6; color: #333333;">We highly value your partnership and want to ensure you have received all necessary information to provide a competitive bid.</p>
+
+                    <!-- Summary Box highlighting crucial details -->
+                    <div style="background-color: #f9fafe; border-left: 4px solid #004b87; padding: 20px; margin-bottom: 25px;">
+                        <table class="data-table" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: collapse;">
+                            <!-- Optional: RFQ Reference / Name -->
+                            <!-- BEGIN-IF: rfqReference -->
+                            <tr>
+                                <th style="width: 35%; padding: 8px 10px; text-align: left; font-size: 14px; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">RFQ Reference:</th>
+                                <td style="padding: 8px 10px; text-align: left; font-size: 14px; vertical-align: top; font-weight: bold; color: #1a1a1a; font-family: Arial, sans-serif;">{{rfqReference}}</td>
+                            </tr>
+                            <!-- END-IF: rfqReference -->
+
+                            <!-- * Required: Submission Deadline -->
+                            <tr>
+                                <th style="width: 35%; padding: 8px 10px; text-align: left; font-size: 14px; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Submission Deadline:</th>
+                                <td style="padding: 8px 10px; text-align: left; font-size: 14px; vertical-align: top; font-weight: bold; color: #d93025; font-family: Arial, sans-serif;">{{submissionDeadline}}</td>
+                            </tr>
+
+                            <!-- Optional: Buyer / Contact Info -->
+                            <!-- BEGIN-IF: buyerContact -->
+                            <tr>
+                                <th style="width: 35%; padding: 8px 10px; text-align: left; font-size: 14px; font-weight: bold; color: #555555; vertical-align: top; font-family: Arial, sans-serif;">Buyer Contact:</th>
+                                <td style="padding: 8px 10px; text-align: left; font-size: 14px; vertical-align: top; font-weight: bold; color: #1a1a1a; font-family: Arial, sans-serif;">{{buyerName}} - <a href="mailto:{{buyerEmail}}" style="color: #0056b3; text-decoration: none;">{{buyerEmail}}</a></td>
+                            </tr>
+                            <!-- END-IF: buyerContact -->
+                        </table>
+                    </div>
+
+                    <h2 style="font-size: 18px; margin: 0 0 10px 0; color: #2c3e50; border-bottom: 2px solid #eeeeee; padding-bottom: 5px; font-family: Arial, sans-serif;">Action Required</h2>
+                    <p style="margin: 0 0 15px 0; font-size: 15px; line-height: 1.6; color: #333333;"><strong>If you intend to submit a quote:</strong><br />
+                    Please review the original RFQ details and submit your quotation along with any required documentation before the deadline mentioned above.</p>
+
+                    <!-- Optional: Link to portal -->
+                    <!-- BEGIN-IF: portalLink -->
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                            <td align="center" style="padding: 10px 0 20px 0;">
+                                <!--[if mso]>
+                                <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{portalLink}}" style="height:44px;v-text-anchor:middle;width:220px;" arcsize="9%" fillcolor="#004b87" stroke="f">
+                                <w:anchorlock/>
+                                <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">Go to RFQ Portal</center>
+                                </v:roundrect>
+                                <![endif]-->
+                                <!--[if !mso]><!-->
+                                <a href="{{portalLink}}" target="_blank" style="display: inline-block; padding: 12px 24px; background-color: #004b87; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 16px; font-family: Arial, sans-serif;">Go to RFQ Portal</a>
+                                <!--<![endif]-->
+                            </td>
+                        </tr>
+                    </table>
+                    <!-- END-IF: portalLink -->
+
+                    <p style="margin: 0 0 15px 0; font-size: 15px; line-height: 1.6; color: #333333;"><strong>If you choose not to participate:</strong><br />
+                    We understand that you may not be able to bid at this time. Please reply to this email to formally <strong>"No-Bid"</strong> so we can update our records and keep you in mind for future opportunities.</p>
+
+                    <!-- Optional: Q&A Reminder -->
+                    <!-- BEGIN-IF: qaDetails -->
+                    <p style="margin: 0 0 15px 0; font-size: 15px; line-height: 1.6; color: #333333;">If you have any questions or require clarifications, please reach out immediately, as the deadline for questions may have passed or is approaching soon.</p>
+                    <!-- END-IF: qaDetails -->
+
+                    <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 30px 0;" />
+
+                    <p style="margin: 0 0 15px 0; font-size: 15px; line-height: 1.6; color: #333333;">Thank you for your prompt attention to this matter.<br /><br />
+                    Sincerely,<br /><strong>{{companyName}} Procurement Team</strong></p>
+                </td>
+            </tr>
+
+            <!-- Footer Section -->
+            <tr>
+                <td bgcolor="#f9f9f9" style="padding: 20px; text-align: center; border-top: 1px solid #e0e0e0; font-family: Arial, sans-serif;">
+                    <p style="font-size: 12px; color: #888888; margin: 0; line-height: 1.5;">
+                        This is an automated reminder from {{companyName}}. Please refer to the original email for full specifications and attachments.<br />
+                        {{companyAddress}} | <a href="{{companyWebsite}}" style="color: #888888; text-decoration: underline;">{{companyWebsite}}</a>
+                    </p>
+                </td>
+            </tr>
+        </table>
+        <!--[if mso]>
+        </td>
+        </tr>
+        </table>
+        <![endif]-->
+    </div>
+</body>
+</html>

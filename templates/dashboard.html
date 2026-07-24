@@ -962,7 +962,10 @@
         }
       }
 
-      // Render saved-query cards into the modal list.
+      // Render saved-query cards into the modal list. Each card previews the
+      // saved sample's structured "fields" JSON (not the hidden query_text
+      // paragraph), matching how a query's fields are shown everywhere else
+      // in the dashboard.
       function renderSavedQueries(queries) {
         const list = document.getElementById("queries-list");
         list.innerHTML = "";
@@ -970,23 +973,37 @@
         queries.forEach((q) => {
           const label = EMAIL_TYPE_LABELS[q.email_type] || q.email_type;
           const badge = badgeStyleFor(q.email_type);
+          const fields = q.fields || {};
+          const fieldCount = Object.keys(fields).length;
 
           const card = document.createElement("div");
           card.className =
             "p-4 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-all";
           card.onclick = () => selectQuery(q);
 
+          const header = document.createElement("div");
+          header.className = "flex items-center justify-between gap-2 mb-2";
+
           const badgeEl = document.createElement("span");
           badgeEl.className =
-            "inline-block px-2 py-1 text-xs rounded mb-2 font-medium " + badge;
+            "inline-block px-2 py-1 text-xs rounded font-medium " + badge;
           badgeEl.textContent = label;
 
-          const text = document.createElement("p");
-          text.className = "text-slate-700 text-sm";
-          text.textContent = q.query_text;
+          const meta = document.createElement("span");
+          meta.className = "text-xs text-slate-400 whitespace-nowrap";
+          meta.textContent =
+            fieldCount + (fieldCount === 1 ? " field" : " fields") + " · " + formatDate(q.created_at);
 
-          card.appendChild(badgeEl);
-          card.appendChild(text);
+          header.appendChild(badgeEl);
+          header.appendChild(meta);
+
+          const jsonBlock = document.createElement("pre");
+          jsonBlock.className =
+            "bg-slate-900 text-slate-100 text-xs rounded-lg p-3 overflow-x-auto whitespace-pre max-h-40 overflow-y-auto";
+          jsonBlock.textContent = JSON.stringify(fields, null, 2);
+
+          card.appendChild(header);
+          card.appendChild(jsonBlock);
           list.appendChild(card);
         });
       }
@@ -995,8 +1012,12 @@
         document.getElementById(id).classList.add("hidden");
       }
 
-      // Query Management
+      // Query Management. Loads a saved sample into the current draft: sets
+      // the matching email type (so "Draft Email Content" uses the right
+      // skill), the hidden query text that drives drafting, and shows the
+      // sample's fields JSON.
       function selectQuery(query) {
+        document.getElementById("email-type").value = query.email_type;
         document.getElementById("query-text").value = query.query_text;
         renderSampleFields(query.fields);
         closeModal("modal-queries");

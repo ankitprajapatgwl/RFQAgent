@@ -29,7 +29,10 @@ class SavedSampleQueryRead(BaseModel):
         id: The saved record's id.
         email_type: Which email pattern this sample was generated for.
         fields: The field values that make up the sample.
-        query_text: The generated natural-language request.
+        query_text: The generated natural-language request. Still returned
+            (and still what's sent on to the email-drafting agent) even
+            though the dashboard no longer displays or edits it as plain
+            text — only ``fields`` is surfaced to the user there.
         created_at: When the sample was generated.
     """
 
