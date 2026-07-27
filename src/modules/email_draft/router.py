@@ -13,6 +13,7 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, status
 
+from src.config import get_settings
 from src.modules.auth.deps import RequiredCookieUserDep
 from src.modules.email_draft.deps import EmailDraftServiceDep
 from src.modules.email_draft.exceptions import EmailDraftGenerationError, EmailDraftNotFoundError
@@ -20,6 +21,8 @@ from src.modules.email_draft.schemas import (
     EmailDraftGenerateRequest,
     EmailDraftRead,
     EmailDraftUpdate,
+    RfqGraftRequest,
+    RfqPreviewResponse,
 )
 from src.modules.email_patterns import EmailType
 
@@ -65,6 +68,79 @@ def generate_email_draft(
     except EmailDraftGenerationError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     return EmailDraftRead.model_validate(saved)
+
+
+@router.post(
+    "/email-drafts/rfq-email/graft",
+    response_model=EmailDraftRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Fill the RFQ HTML template directly from generated fields (no drafting agent)",
+)
+def graft_rfq_email_draft(
+    payload: RfqGraftRequest,
+    current_user: RequiredCookieUserDep,
+    email_draft_service: EmailDraftServiceDep,
+) -> EmailDraftRead:
+    """Graft an RFQ email straight from generated field data and save it.
+
+    This is the RFQ-only counterpart to :func:`generate_email_draft`: instead
+    of asking the drafting LLM to write a subject/body from a natural-
+    language query, it fills ``payload.fields`` (as produced by the
+    sample-data agent, or subsequently hand-edited) directly into the RFQ
+    HTML template. No drafting agent call is made.
+
+    Args:
+        payload: The RFQ field values to graft into the template.
+        current_user: The authenticated user — the saved draft's owner.
+        email_draft_service: Injected email-draft service.
+
+    Returns:
+        The saved :class:`EmailDraftRead`, with ``status = "draft"`` and
+        ``is_html = True``.
+    """
+    settings = get_settings()
+    saved = email_draft_service.graft_rfq_and_save(
+        user_id=current_user.id,
+        fields=payload.fields,
+        contact_name=current_user.full_name,
+        contact_email=current_user.email,
+        company_name=settings.provider_company_name(settings.email_provider),
+    )
+    return EmailDraftRead.model_validate(saved)
+
+
+@router.post(
+    "/email-drafts/rfq-email/preview",
+    response_model=RfqPreviewResponse,
+    summary="Render the RFQ email subject/body from fields, without saving",
+)
+def preview_rfq_email_draft(
+    payload: RfqGraftRequest,
+    current_user: RequiredCookieUserDep,
+    email_draft_service: EmailDraftServiceDep,
+) -> RfqPreviewResponse:
+    """Render an RFQ subject/body straight from field data — no persistence.
+
+    Backs the dashboard's live preview: called as the user edits the
+    generated fields for an already-grafted draft, so the on-screen email
+    updates immediately without creating a new draft record for every edit.
+
+    Args:
+        payload: The RFQ field values to render.
+        current_user: The authenticated user — supplies the buyer contact details.
+        email_draft_service: Injected email-draft service.
+
+    Returns:
+        The rendered :class:`RfqPreviewResponse`.
+    """
+    settings = get_settings()
+    subject, body = email_draft_service.render_rfq_preview(
+        fields=payload.fields,
+        contact_name=current_user.full_name,
+        contact_email=current_user.email,
+        company_name=settings.provider_company_name(settings.email_provider),
+    )
+    return RfqPreviewResponse(subject=subject, body=body)
 
 
 @router.get(

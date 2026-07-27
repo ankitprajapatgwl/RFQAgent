@@ -30,6 +30,7 @@ from src.modules.email_draft.exceptions import EmailDraftGenerationError, EmailD
 from src.modules.email_draft.models import DraftedEmail
 from src.modules.email_draft.prompts import build_prompts
 from src.modules.email_draft.repository import EmailDraftRepository
+from src.modules.email_draft.rfq_template import build_rfq_graft_subject, render_rfq_email_html
 from src.modules.email_draft.schemas import GeneratedDraft
 from src.modules.email_patterns import EmailType
 from src.observability import get_logger
@@ -145,6 +146,84 @@ class EmailDraftService:
             query_text=query_text,
             subject=generated.subject,
             body=generated.body,
+        )
+
+    def render_rfq_preview(
+        self,
+        *,
+        fields: dict[str, str],
+        contact_name: str,
+        contact_email: str,
+        company_name: str,
+    ) -> tuple[str, str]:
+        """Render an RFQ email's subject/body from field values, without saving.
+
+        Powers the dashboard's live preview: as the user edits a field, the
+        drafted email shown on screen updates immediately from this pure,
+        no-LLM render — nothing is persisted.
+
+        Args:
+            fields: The RFQ field values to fill into the template (see
+                :data:`~src.modules.email_patterns.RFQ_FIELD_CATALOG`).
+            contact_name: Signed-in user's display name (buyer contact).
+            contact_email: Signed-in user's email address (buyer contact).
+            company_name: The sender's company name.
+
+        Returns:
+            A ``(subject, body)`` tuple.
+        """
+        subject = build_rfq_graft_subject(fields)
+        body = render_rfq_email_html(
+            fields,
+            contact_name=contact_name,
+            contact_email=contact_email,
+            company_name=company_name,
+        )
+        return subject, body
+
+    def graft_rfq_and_save(
+        self,
+        *,
+        user_id: uuid.UUID,
+        fields: dict[str, str],
+        contact_name: str,
+        contact_email: str,
+        company_name: str,
+    ) -> DraftedEmail:
+        """Fill the RFQ HTML template directly from generated fields and save it.
+
+        Unlike :meth:`generate_and_save`, this never calls the LLM: every
+        value in the saved draft comes from either ``fields`` (as generated
+        by the sample-data agent, or hand-edited by the user) or the
+        signed-in user's own profile — there is nothing left for a drafting
+        agent to write. The result is saved with status ``"draft"`` like any
+        other draft, so it goes through the exact same human verify/modify/
+        send flow.
+
+        Args:
+            user_id: The requesting user's id — the saved draft's owner.
+            fields: The RFQ field values to fill into the template (see
+                :data:`~src.modules.email_patterns.RFQ_FIELD_CATALOG`).
+            contact_name: Signed-in user's display name (buyer contact).
+            contact_email: Signed-in user's email address (buyer contact).
+            company_name: The sender's company name.
+
+        Returns:
+            The saved :class:`DraftedEmail`, with ``is_html=True``.
+        """
+        subject, body = self.render_rfq_preview(
+            fields=fields,
+            contact_name=contact_name,
+            contact_email=contact_email,
+            company_name=company_name,
+        )
+        return self._repository.save(
+            user_id=user_id,
+            email_type=EmailType.RFQ,
+            query_text=json.dumps(fields),
+            subject=subject,
+            body=body,
+            is_html=True,
         )
 
     def list_saved(

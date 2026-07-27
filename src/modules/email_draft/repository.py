@@ -36,6 +36,7 @@ class EmailDraftRepository:
         query_text: str,
         subject: str,
         body: str,
+        is_html: bool = False,
     ) -> DraftedEmail:
         """Persist a freshly drafted email and return the managed instance.
 
@@ -48,6 +49,8 @@ class EmailDraftRepository:
             query_text: The natural-language request the draft was generated from.
             subject: The generated subject line.
             body: The generated body.
+            is_html: Whether ``body`` is a complete, already-rendered HTML
+                document (see :attr:`DraftedEmail.is_html`).
 
         Returns:
             The newly created, flushed :class:`DraftedEmail`.
@@ -58,6 +61,7 @@ class EmailDraftRepository:
             query_text=query_text,
             subject=subject,
             body=body,
+            is_html=is_html,
         )
         self._session.add(record)
         self._session.flush()  # assigns the primary key without ending the transaction

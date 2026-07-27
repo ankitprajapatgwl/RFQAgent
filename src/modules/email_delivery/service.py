@@ -196,15 +196,16 @@ class EmailDeliveryService:
         recipient_name: str,
         subject: str,
         body_text: str,
+        is_html_body: bool = False,
         attachments: list[RawAttachment] | None = None,
         provider_name: str | None = None,
     ) -> Conversation:
         """Open a conversation and send a human-verified draft.
 
-        The draft's plain-text body is wrapped as tracked HTML (with the
-        ``CONV-`` reference footer) so replies thread back. The ``From`` header
-        is the user's permanent ``sending_email`` when set, else one derived
-        from their name on the provider's outbound domain.
+        The draft's body is wrapped as tracked HTML (with the ``CONV-``
+        reference footer) so replies thread back. The ``From`` header is the
+        user's permanent ``sending_email`` when set, else one derived from
+        their name on the provider's outbound domain.
 
         Args:
             user_id: Sending user's id.
@@ -213,7 +214,11 @@ class EmailDeliveryService:
             recipient: Supplier address to send to.
             recipient_name: Supplier display name.
             subject: The verified subject.
-            body_text: The verified plain-text body.
+            body_text: The verified body — plain text unless ``is_html_body``.
+            is_html_body: Whether ``body_text`` is already a complete,
+                rendered HTML document (e.g. a grafted RFQ email) rather than
+                plain text. When ``True``, the body is sent as-is (just the
+                reference footer appended) instead of being HTML-escaped.
             attachments: Optional files the user attached to the draft; they
                 are transmitted with the email and persisted to local storage.
             provider_name: Provider key; defaults to the configured provider.
@@ -234,9 +239,16 @@ class EmailDeliveryService:
             send_kind=SendKind.DRAFT,
             provider_name=provider.provider_name,
         )
-        html_body = provider.build_message_html(
-            user_id=str(user_id), conv_id=conversation.token, body_text=body_text
-        )
+        if is_html_body:
+            html_body = provider.wrap_prerendered_html(
+                user_id=str(user_id), conv_id=conversation.token, html_body=body_text
+            )
+            text_body = provider.html_to_text(body_text)
+        else:
+            html_body = provider.build_message_html(
+                user_id=str(user_id), conv_id=conversation.token, body_text=body_text
+            )
+            text_body = body_text
         from_email = sender_email or provider.build_sending_email(user_name)
         result = provider.send_email(
             from_email=from_email,
@@ -245,7 +257,7 @@ class EmailDeliveryService:
             to_name=recipient_name,
             subject=subject,
             html_body=html_body,
-            text_body=body_text,
+            text_body=text_body,
             reply_to=conversation.reply_to_address,
             attachments=self._provider_attachments(attachments),
         )
@@ -255,7 +267,7 @@ class EmailDeliveryService:
             from_email=from_email,
             to_email=recipient,
             subject=subject,
-            body_text=body_text,
+            body_text=text_body,
             body_html=html_body,
             provider=result.get("provider"),
             provider_message_id=result.get("provider_message_id"),

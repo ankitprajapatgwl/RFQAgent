@@ -53,6 +53,7 @@ _RETRY_BACKOFF_SECONDS = 2.0
 _ADDITIVE_COLUMNS: dict[str, dict[str, str]] = {
     "users": {"phone_number": "VARCHAR(32)"},
     "email_messages": {"processing_status": "VARCHAR(16) NOT NULL DEFAULT 'pending'"},
+    "drafted_emails": {"is_html": "BOOLEAN NOT NULL DEFAULT FALSE"},
 }
 
 

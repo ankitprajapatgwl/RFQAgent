@@ -41,6 +41,11 @@ class DraftedEmail(Base):
         body: The email body.
         status: Lifecycle state — ``"draft"`` until a human explicitly
             verifies it. See :class:`~src.modules.email_draft.enums.DraftStatus`.
+        is_html: Whether ``body`` is a complete, already-rendered HTML
+            document (e.g. the RFQ template filled in by the "graft" flow)
+            rather than the plain text an LLM drafting call produces. Sending
+            reads this to decide whether to send ``body`` as-is or wrap it as
+            escaped plain text.
         created_at: UTC timestamp when the draft was generated.
         updated_at: UTC timestamp of the most recent human edit or
             verification.
@@ -60,6 +65,7 @@ class DraftedEmail(Base):
     status: Mapped[str] = mapped_column(
         String(20), default=DraftStatus.DRAFT.value, nullable=False, index=True
     )
+    is_html: Mapped[bool] = mapped_column(default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, nullable=False
     )

@@ -245,6 +245,25 @@ class EmailMaster(ABC):
         ]
         return "".join(parts)
 
+    def wrap_prerendered_html(self, *, user_id: str, conv_id: str, html_body: str) -> str:
+        """Append the tracked conversation reference footer to a complete HTML body.
+
+        Used for bodies that are already a fully-rendered HTML document (e.g.
+        a grafted RFQ email filled in from
+        :mod:`~src.modules.email_draft.rfq_template`) — unlike
+        :meth:`build_message_html`, the body is never HTML-escaped or wrapped,
+        since it is not plain text.
+
+        Args:
+            user_id: The owning user (shown in the footer reference).
+            conv_id: The conversation identifier (shown in the footer).
+            html_body: The complete, already-rendered HTML body.
+
+        Returns:
+            ``html_body`` with the ``CONV-{id}`` reference footer appended.
+        """
+        return html_body + self._reference_footer(user_id, conv_id)
+
     def build_message_html(self, *, user_id: str, conv_id: str, body_text: str) -> str:
         """Wrap a human-authored plain-text body as a conversation-tracked email.
 

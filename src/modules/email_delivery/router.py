@@ -24,6 +24,7 @@ from src.modules.auth.deps import RequiredCookieUserDep
 from src.modules.email_delivery.attachments import RawAttachment
 from src.modules.email_delivery.deps import EmailDeliveryServiceDep
 from src.modules.email_delivery.exceptions import EmailProviderError
+from src.modules.email_delivery.providers import EmailMaster
 from src.modules.email_delivery.schemas import (
     ConversationDetail,
     ConversationRead,
@@ -157,15 +158,17 @@ def send_verified_draft(
             detail="This draft has no recipient address to send to.",
         )
 
+    greeting_source = EmailMaster.html_to_text(draft.body) if draft.is_html else draft.body
     try:
         conversation = email_delivery_service.send_draft(
             user_id=current_user.id,
             user_name=current_user.full_name,
             sender_email=current_user.sending_email,
             recipient=draft.recipient,
-            recipient_name=extract_recipient_name(draft.body),
+            recipient_name=extract_recipient_name(greeting_source),
             subject=draft.subject,
             body_text=draft.body,
+            is_html_body=draft.is_html,
             attachments=_read_uploads(attachments),
         )
     except EmailProviderError as exc:
