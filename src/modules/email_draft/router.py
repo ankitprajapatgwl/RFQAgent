@@ -85,9 +85,9 @@ def graft_rfq_email_draft(
 
     This is the RFQ-only counterpart to :func:`generate_email_draft`: instead
     of asking the drafting LLM to write a subject/body from a natural-
-    language query, it fills ``payload.fields`` (as produced by the
-    sample-data agent, or subsequently hand-edited) directly into the RFQ
-    HTML template. No drafting agent call is made.
+    language query, it fills ``payload.fields`` (picked from a hard-coded
+    sample, or subsequently hand-edited) directly into the RFQ HTML
+    template. No drafting agent call is made.
 
     Args:
         payload: The RFQ field values to graft into the template.

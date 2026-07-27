@@ -193,9 +193,9 @@ class EmailDraftService:
         """Fill the RFQ HTML template directly from generated fields and save it.
 
         Unlike :meth:`generate_and_save`, this never calls the LLM: every
-        value in the saved draft comes from either ``fields`` (as generated
-        by the sample-data agent, or hand-edited by the user) or the
-        signed-in user's own profile — there is nothing left for a drafting
+        value in the saved draft comes from either ``fields`` (picked from a
+        hard-coded sample, or hand-edited by the user) or the signed-in
+        user's own profile — there is nothing left for a drafting
         agent to write. The result is saved with status ``"draft"`` like any
         other draft, so it goes through the exact same human verify/modify/
         send flow.

@@ -17,7 +17,6 @@ from src.modules.auth.repository import UserRepository
 from src.modules.auth.service import AuthService
 from src.modules.auth.token_service import TokenService
 from src.modules.email_draft.repository import EmailDraftRepository
-from src.modules.sample_data.repository import SampleQueryRepository
 
 
 @pytest.fixture
@@ -66,12 +65,6 @@ def auth_service(
 ) -> AuthService:
     """Return a fully wired auth service backed by the in-memory database."""
     return AuthService(UserRepository(db_session), password_hasher, token_service)
-
-
-@pytest.fixture
-def sample_query_repository(db_session: Session) -> SampleQueryRepository:
-    """Return a sample-query repository backed by the in-memory database."""
-    return SampleQueryRepository(db_session)
 
 
 @pytest.fixture

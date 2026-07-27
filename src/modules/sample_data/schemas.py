@@ -1,45 +1,22 @@
 """Pydantic schemas for the sample-data module."""
 
-import uuid
-from datetime import datetime
-
-from pydantic import BaseModel, ConfigDict, Field
-
-from src.modules.email_patterns import EmailType
+from pydantic import BaseModel, Field
 
 
-class GeneratedSample(BaseModel):
-    """The raw shape produced by the LLM for one generation call.
+class SampleRfqRead(BaseModel):
+    """One hard-coded sample RFQ scenario a user can pick from the list.
 
     Attributes:
-        fields: The mandatory (and any volunteered optional) field values the
-            model invented, keyed by field name.
-        query_text: A ready-to-use natural-language request a user could send
-            to an email-drafting agent, containing every mandatory field.
+        id: Stable slug identifying this sample (used as the React/DOM key).
+        label: Short human-readable title shown in the picker.
+        fields: The full RFQ field checklist values (see
+            :data:`~src.modules.email_patterns.RFQ_FIELD_CATALOG`), keyed by
+            field name.
+        query_text: A ready-to-use natural-language request mentioning every
+            field, kept for parity with what the RFQ-drafting flow expects.
     """
 
+    id: str
+    label: str
     fields: dict[str, str] = Field(min_length=1)
     query_text: str = Field(min_length=1)
-
-
-class SavedSampleQueryRead(BaseModel):
-    """Output contract for a persisted sample query.
-
-    Attributes:
-        id: The saved record's id.
-        email_type: Which email pattern this sample was generated for.
-        fields: The field values that make up the sample.
-        query_text: The generated natural-language request. Still returned
-            (and still what's sent on to the email-drafting agent) even
-            though the dashboard no longer displays or edits it as plain
-            text — only ``fields`` is surfaced to the user there.
-        created_at: When the sample was generated.
-    """
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID
-    email_type: EmailType
-    fields: dict[str, str]
-    query_text: str
-    created_at: datetime

@@ -1,10 +1,9 @@
 """The protected dashboard shell.
 
-Composes the auth module (who's signed in) with the sample-data module
-(what email types are available) into the app's single-page dashboard —
-sidebar navigation, top-right profile menu, and a "Generate Email" panel.
-This lives at the app level, not inside either module, because it depends on
-both.
+Composes the auth module (who's signed in) into the app's single-page
+dashboard — sidebar navigation, top-right profile menu, and a "Generate
+Email" panel. This lives at the app level, not inside any one module,
+because it depends on more than one.
 """
 
 from __future__ import annotations
@@ -14,7 +13,6 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from src.api.templating import templates
 from src.modules.auth.deps import OptionalCookieUserDep
-from src.modules.email_patterns import EMAIL_TYPE_LABELS, EmailTypeOption
 
 router = APIRouter(tags=["dashboard"], include_in_schema=False)
 
@@ -33,9 +31,4 @@ def dashboard_page(
     """Render the protected dashboard, redirecting anonymous visitors to login."""
     if current_user is None:
         return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
-    email_types = [
-        EmailTypeOption(value=value, label=label) for value, label in EMAIL_TYPE_LABELS.items()
-    ]
-    return templates.TemplateResponse(
-        request, "dashboard.html", {"user": current_user, "email_types": email_types}
-    )
+    return templates.TemplateResponse(request, "dashboard.html", {"user": current_user})

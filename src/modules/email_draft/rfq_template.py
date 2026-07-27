@@ -1,8 +1,9 @@
 """Renders the RFQ HTML email template directly from generated field data.
 
-Backs the "Graft Email Content" flow: the sample-data agent's RFQ field
-values (:data:`~src.modules.email_patterns.RFQ_FIELD_CATALOG`) and the
-signed-in user's own contact details are filled straight into
+Backs the "Graft Email Content" flow: RFQ field values
+(:data:`~src.modules.email_patterns.RFQ_FIELD_CATALOG`) — picked from a
+hard-coded sample or hand-edited by the user — and the signed-in user's own
+contact details are filled straight into
 ``templates/email_templates/rfq_email_template.html``. No drafting LLM call
 is involved — every value already has a concrete source, so there is
 nothing left for a drafting agent to invent.
@@ -54,8 +55,8 @@ def render_rfq_email_html(
     """Fill the RFQ HTML template with the given field values.
 
     Args:
-        fields: The RFQ field values to fill into the template, as generated
-            by the sample-data agent (or subsequently hand-edited).
+        fields: The RFQ field values to fill into the template, picked from a
+            hard-coded sample (or subsequently hand-edited).
         contact_name: Signed-in user's display name (buyer contact).
         contact_email: Signed-in user's email address (buyer contact).
         company_name: The sender's company name.

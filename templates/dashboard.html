@@ -245,23 +245,12 @@
             </h3>
 
             <div id="step-2-body">
-              <div
-                class="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 mb-4"
-              >
+              <div class="mb-4">
                 <button
-                  onclick="openExistingQueriesModal()"
-                  class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-3 rounded-lg font-medium transition-colors border border-slate-300 flex justify-center items-center"
+                  onclick="openSampleRfqModal()"
+                  class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-3 rounded-lg font-medium transition-colors border border-slate-300 flex justify-center items-center"
                 >
-                  <i class="fa-solid fa-list-ul mr-2"></i> Select Existing Query
-                </button>
-                <div class="text-slate-400 font-medium text-sm text-center">
-                  OR
-                </div>
-                <button
-                  onclick="generateSampleQuery(this)"
-                  class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-3 rounded-lg font-medium transition-colors border border-blue-200 flex justify-center items-center"
-                >
-                  <i class="fa-solid fa-magic mr-2"></i> Generate Sample Query
+                  <i class="fa-solid fa-list-ul mr-2"></i> Select Sample RFQ Data
                 </button>
               </div>
 
@@ -659,7 +648,7 @@
       >
         <div class="p-5 border-b flex justify-between items-center">
           <h3 class="text-lg font-semibold text-slate-800">
-            Select Existing Query
+            Select Sample RFQ Data
           </h3>
           <button
             onclick="closeModal('modal-queries')"
@@ -670,14 +659,13 @@
         </div>
         <div class="p-5 overflow-y-auto flex-1 space-y-3">
           <p class="text-sm text-slate-500 mb-4">
-            Click on a previously saved query to load it into your current
-            draft. Showing every RFQ query you have generated so far.
+            Click on a sample RFQ to load its fields into your current draft.
           </p>
 
           <!-- Loading state -->
           <div id="queries-loading" class="hidden py-10 text-center text-slate-500">
             <i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2"></i>
-            <p class="text-sm">Loading saved queries...</p>
+            <p class="text-sm">Loading sample RFQ data...</p>
           </div>
 
           <!-- Empty state -->
@@ -688,10 +676,7 @@
               <i class="fa-solid fa-inbox"></i>
             </div>
             <p class="text-slate-600 text-sm">
-              You haven't generated any queries yet.
-            </p>
-            <p class="text-slate-400 text-xs mt-1">
-              Use "Generate Sample Query" to create one.
+              No sample RFQ data is available.
             </p>
           </div>
 
@@ -1177,27 +1162,6 @@
       // loadConversations() whenever the Tracking tab is opened.
       let conversationsData = [];
 
-      // Human-readable labels for each backend email type, injected from the
-      // server so the query picker can badge saved queries by their type.
-      const EMAIL_TYPE_LABELS = {
-        {% for opt in email_types %}"{{ opt.value }}": "{{ opt.label }}",
-        {% endfor %}
-      };
-
-      // A small rotating palette so each email type gets a stable badge color.
-      const BADGE_STYLES = [
-        "bg-purple-100 text-purple-700",
-        "bg-yellow-100 text-yellow-700",
-        "bg-green-100 text-green-700",
-        "bg-blue-100 text-blue-700",
-        "bg-pink-100 text-pink-700",
-      ];
-      function badgeStyleFor(emailType) {
-        const keys = Object.keys(EMAIL_TYPE_LABELS);
-        const idx = keys.indexOf(emailType);
-        return BADGE_STYLES[(idx < 0 ? 0 : idx) % BADGE_STYLES.length];
-      }
-
       // The currently drafted email (backend EmailDraftRead), once generated.
       // Holds the draft's id/status so Save/Verify/Send act on the right record.
       let currentDraft = null;
@@ -1310,9 +1274,9 @@
 
       // Modal Controls
 
-      // Open the "Select Existing Query" modal and load the current user's
-      // complete saved-query history (every email type) from the backend.
-      async function openExistingQueriesModal() {
+      // Open the "Select Sample RFQ Data" modal and load the hard-coded list
+      // of sample RFQ scenarios from the backend.
+      async function openSampleRfqModal() {
         const loading = document.getElementById("queries-loading");
         const empty = document.getElementById("queries-empty");
         const errorBox = document.getElementById("queries-error");
@@ -1325,19 +1289,19 @@
         loading.classList.remove("hidden");
 
         try {
-          const response = await fetch("/api/v1/sample-queries?email_type=rfq-email");
+          const response = await fetch("/api/v1/sample-queries");
           if (!response.ok) {
             const data = await response.json().catch(() => ({}));
-            throw new Error(data.detail || "Failed to load saved queries.");
+            throw new Error(data.detail || "Failed to load sample RFQ data.");
           }
-          const queries = await response.json();
+          const samples = await response.json();
           loading.classList.add("hidden");
 
-          if (!queries.length) {
+          if (!samples.length) {
             empty.classList.remove("hidden");
             return;
           }
-          renderSavedQueries(queries);
+          renderSampleList(samples);
         } catch (err) {
           loading.classList.add("hidden");
           errorBox.textContent = err.message;
@@ -1345,39 +1309,33 @@
         }
       }
 
-      // Render saved-query cards into the modal list. Each card previews the
-      // saved sample's structured "fields" JSON (not the hidden query_text
-      // paragraph), matching how a query's fields are shown everywhere else
-      // in the dashboard.
-      function renderSavedQueries(queries) {
+      // Render sample-RFQ cards into the modal list. Each card previews the
+      // sample's structured "fields" JSON under its label.
+      function renderSampleList(samples) {
         const list = document.getElementById("queries-list");
         list.innerHTML = "";
 
-        queries.forEach((q) => {
-          const label = EMAIL_TYPE_LABELS[q.email_type] || q.email_type;
-          const badge = badgeStyleFor(q.email_type);
-          const fields = q.fields || {};
+        samples.forEach((sample) => {
+          const fields = sample.fields || {};
           const fieldCount = Object.keys(fields).length;
 
           const card = document.createElement("div");
           card.className =
             "p-4 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-all";
-          card.onclick = () => selectQuery(q);
+          card.onclick = () => selectSample(sample);
 
           const header = document.createElement("div");
           header.className = "flex items-center justify-between gap-2 mb-2";
 
-          const badgeEl = document.createElement("span");
-          badgeEl.className =
-            "inline-block px-2 py-1 text-xs rounded font-medium " + badge;
-          badgeEl.textContent = label;
+          const titleEl = document.createElement("span");
+          titleEl.className = "text-sm font-medium text-slate-800";
+          titleEl.textContent = sample.label;
 
           const meta = document.createElement("span");
           meta.className = "text-xs text-slate-400 whitespace-nowrap";
-          meta.textContent =
-            fieldCount + (fieldCount === 1 ? " field" : " fields") + " · " + formatDate(q.created_at);
+          meta.textContent = fieldCount + (fieldCount === 1 ? " field" : " fields");
 
-          header.appendChild(badgeEl);
+          header.appendChild(titleEl);
           header.appendChild(meta);
 
           const jsonBlock = document.createElement("pre");
@@ -1395,11 +1353,11 @@
         document.getElementById(id).classList.add("hidden");
       }
 
-      // Query Management. Loads a saved RFQ sample into the current draft:
-      // the hidden query text (kept for reference) and the sample's fields.
-      function selectQuery(query) {
-        document.getElementById("query-text").value = query.query_text;
-        renderSampleFields(query.fields);
+      // Loads a selected sample RFQ into the current draft: the hidden query
+      // text (kept for reference) and the sample's fields.
+      function selectSample(sample) {
+        document.getElementById("query-text").value = sample.query_text;
+        renderSampleFields(sample.fields);
         closeModal("modal-queries");
       }
 
@@ -1414,9 +1372,9 @@
       }
 
       // Render (or hide) the "Generated Fields" panel for the current query
-      // — populated by generateSampleQuery() and selectQuery(). Each field is
-      // shown as its own labeled, editable textarea (rather than raw JSON) so
-      // the user can tweak individual values directly.
+      // — populated by selectSample(). Each field is shown as its own
+      // labeled, editable textarea (rather than raw JSON) so the user can
+      // tweak individual values directly.
       function renderSampleFields(fields) {
         const section = document.getElementById("sample-fields-section");
         const container = document.getElementById("sample-fields-inputs");
@@ -1512,53 +1470,10 @@
         }
       }
 
-      // Generate a fresh sample query via the backend. The API generates,
-      // persists it (so it shows up under "Select Existing Query"), and
-      // returns the saved record — we load its query text into the textarea.
-      async function generateSampleQuery(btn) {
-        const type = document.getElementById("email-type").value;
-        if (!type) {
-          alert("Please select an email type first.");
-          return;
-        }
-
-        const trigger =
-          btn ||
-          (window.event && window.event.currentTarget) ||
-          document.querySelector('[onclick*="generateSampleQuery"]');
-        const originalHtml = trigger ? trigger.innerHTML : null;
-        if (trigger) {
-          trigger.disabled = true;
-          trigger.innerHTML =
-            '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Generating...';
-        }
-
-        try {
-          const response = await fetch(
-            "/api/v1/sample-queries/" + encodeURIComponent(type),
-            { method: "POST" }
-          );
-          const data = await response.json();
-          if (!response.ok) {
-            throw new Error(data.detail || "Failed to generate a sample query.");
-          }
-          document.getElementById("query-text").value = data.query_text;
-          renderSampleFields(data.fields);
-        } catch (err) {
-          alert(err.message);
-        } finally {
-          if (trigger) {
-            trigger.disabled = false;
-            trigger.innerHTML = originalHtml;
-          }
-        }
-      }
-
-      // This workspace only drafts RFQ emails: fills the generated sample
-      // fields (from "Generate Sample Query" / "Select Existing Query")
-      // directly into the RFQ HTML template on the backend. No drafting LLM
-      // call is involved — the saved draft's body is already a complete,
-      // rendered email.
+      // This workspace only drafts RFQ emails: fills the sample fields
+      // (from "Select Sample RFQ Data") directly into the RFQ HTML template
+      // on the backend. No drafting LLM call is involved — the saved
+      // draft's body is already a complete, rendered email.
       async function graftEmail() {
         if (!currentSampleFields || !Object.keys(currentSampleFields).length) {
           alert("Please generate or select a sample query first.");
@@ -1602,7 +1517,14 @@
       // Verify & Modify form and refresh its status UI.
       function loadDraftIntoForm(draft) {
         currentDraft = draft;
-        document.getElementById("email-to").value = draft.recipient || "";
+        // The RFQ graft flow never sets a recipient on the backend (there is
+        // no drafting agent to invent one), so fall back to the selected
+        // sample's own "Supplier Email Address" field when the saved draft
+        // doesn't have one yet.
+        document.getElementById("email-to").value =
+          draft.recipient ||
+          (currentSampleFields && currentSampleFields.supplier_email_address) ||
+          "";
         document.getElementById("draft-error").classList.add("hidden");
         updateDraftStatusUI();
         renderDraftContent();

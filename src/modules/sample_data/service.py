@@ -1,145 +1,36 @@
-"""Sample email-drafting query generation.
+"""Static sample RFQ data.
 
-:class:`SampleQueryService` orchestrates prompt-building, the LLM client, and
-persistence to invent a fictional, schema-valid sample scenario for one of
-the ``skills/emails-patterns`` email types, and save it so it can be reused
-later from the dashboard's "saved sample data" dropdown.
+:class:`SampleDataService` reads a fixed set of hand-authored RFQ scenarios
+from ``fixtures/rfq_samples.json`` (bundled with this module) so a user can
+pick a ready-made example instead of typing one out. No LLM call and no
+database persistence are involved — the list is the same for every user.
 """
 
 from __future__ import annotations
 
 import json
-import uuid
+from functools import lru_cache
+from pathlib import Path
 
-from pydantic import ValidationError
+from src.modules.sample_data.schemas import SampleRfqRead
 
-from src.integrations.llm import LLMClient, LLMGenerationError
-from src.modules.email_patterns import RFQ_FIELD_CATALOG, EmailType
-from src.modules.sample_data.exceptions import SampleQueryGenerationError
-from src.modules.sample_data.models import SavedSampleQuery
-from src.modules.sample_data.prompts import build_prompts
-from src.modules.sample_data.repository import SampleQueryRepository
-from src.modules.sample_data.schemas import GeneratedSample
-from src.observability import get_logger
-
-logger = get_logger(__name__)
-
-# Values the model sometimes emits in place of a real answer — treated the
-# same as a missing field when checking required RFQ fields.
-_PLACEHOLDER_VALUES = {"", "tbd", "n/a", "na", "todo", "unknown", "none"}
+_FIXTURES_PATH = Path(__file__).parent / "fixtures" / "rfq_samples.json"
 
 
-def _validate_rfq_fields(fields: dict[str, str]) -> None:
-    """Ensure every required RFQ field has a concrete, non-placeholder value.
-
-    Args:
-        fields: The "fields" dict the model returned.
-
-    Raises:
-        SampleQueryGenerationError: If any required
-            :data:`~src.modules.email_patterns.RFQ_FIELD_CATALOG` field is
-            missing, blank, or a placeholder like "TBD"/"N/A".
-    """
-    missing = [
-        field.label
-        for field in RFQ_FIELD_CATALOG
-        if field.required and str(fields.get(field.name, "")).strip().lower() in _PLACEHOLDER_VALUES
-    ]
-    if missing:
-        raise SampleQueryGenerationError(
-            "The model's response was missing required RFQ fields: " + ", ".join(missing)
-        )
+@lru_cache(maxsize=1)
+def _load_samples() -> tuple[SampleRfqRead, ...]:
+    """Parse and validate the bundled RFQ sample fixtures, once per process."""
+    raw = json.loads(_FIXTURES_PATH.read_text(encoding="utf-8"))
+    return tuple(SampleRfqRead.model_validate(item) for item in raw)
 
 
-def _parse_json_object(raw: str) -> dict[str, object]:
-    """Parse the model's response into a JSON object, tolerating code fences.
+class SampleDataService:
+    """Serves the hard-coded list of sample RFQ scenarios."""
 
-    Args:
-        raw: The raw text returned by the LLM.
-
-    Returns:
-        The decoded JSON object.
-
-    Raises:
-        SampleQueryGenerationError: If the text is not a valid JSON object.
-    """
-    text = raw.strip()
-    if text.startswith("```"):
-        text = text.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-    try:
-        parsed = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise SampleQueryGenerationError("The model did not return valid JSON.") from exc
-    if not isinstance(parsed, dict):
-        raise SampleQueryGenerationError("The model's JSON response was not an object.")
-    return parsed
-
-
-class SampleQueryService:
-    """Generates and persists fictional sample queries for the email-drafting skills.
-
-    Args:
-        llm_client: Client used to call the underlying language model.
-        repository: Data access for saved sample queries.
-    """
-
-    def __init__(self, llm_client: LLMClient, repository: SampleQueryRepository) -> None:
-        """Store the injected collaborators."""
-        self._llm_client = llm_client
-        self._repository = repository
-
-    def generate_and_save(self, *, user_id: uuid.UUID, email_type: EmailType) -> SavedSampleQuery:
-        """Generate one sample query and persist it for the given user.
-
-        Args:
-            user_id: The requesting user's id — the saved record's owner.
-            email_type: Which email pattern to generate a sample for.
+    def list_samples(self) -> list[SampleRfqRead]:
+        """Return every available sample RFQ scenario.
 
         Returns:
-            The saved :class:`SavedSampleQuery`.
-
-        Raises:
-            SampleQueryGenerationError: If the LLM call fails, its response
-                does not match the expected shape, or (for RFQ) a required
-                field from :data:`~src.modules.email_patterns.RFQ_FIELD_CATALOG`
-                is missing or left as a placeholder.
+            The bundled sample RFQs, in fixture-file order.
         """
-        system_prompt, user_prompt = build_prompts(email_type)
-        try:
-            raw = self._llm_client.generate(system_prompt=system_prompt, user_prompt=user_prompt)
-        except LLMGenerationError as exc:
-            logger.warning("Sample query generation failed for %s: %s", email_type, exc)
-            raise SampleQueryGenerationError("Could not generate a sample query.") from exc
-
-        payload = _parse_json_object(raw)
-        try:
-            generated = GeneratedSample.model_validate(payload)
-        except ValidationError as exc:
-            raise SampleQueryGenerationError(
-                "The model's response did not match the expected schema."
-            ) from exc
-
-        if email_type is EmailType.RFQ:
-            _validate_rfq_fields(generated.fields)
-
-        return self._repository.save(
-            user_id=user_id,
-            email_type=email_type,
-            fields=generated.fields,
-            query_text=generated.query_text,
-        )
-
-    def list_saved(
-        self, *, user_id: uuid.UUID, email_type: EmailType | None = None
-    ) -> list[SavedSampleQuery]:
-        """Return a user's previously saved samples, newest first.
-
-        Args:
-            user_id: The requesting user's id.
-            email_type: Optional email pattern to filter by. When ``None``
-                (the default), the user's complete saved history is returned.
-
-        Returns:
-            Matching :class:`SavedSampleQuery` rows, most recent first.
-        """
-        return self._repository.list_for_user(user_id=user_id, email_type=email_type)
+        return list(_load_samples())

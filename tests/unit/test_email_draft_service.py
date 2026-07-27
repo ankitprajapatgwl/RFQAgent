@@ -3,7 +3,7 @@
 Per the coding standards (file ``04``, §5.1), the LLM is never called for
 real in a unit test — a fake client returns canned responses instead.
 Persistence is exercised against the real repository/in-memory database, the
-same pattern used by the sample-data module's tests.
+same pattern used by the auth service's tests.
 
 A dedicated set of tests enforces the module's hard rule (Rule 6 in
 ``AgenticAI_Rules_Diagram.md``): generation and modification can never mark a
