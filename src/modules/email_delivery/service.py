@@ -43,11 +43,12 @@ from src.modules.email_delivery.enums import (
     SendKind,
 )
 from src.modules.email_delivery.exceptions import (
+    ConversationNotFoundError,
     DuplicateConversationTokenError,
     EmailProviderError,
     WebhookParseError,
 )
-from src.modules.email_delivery.models import Conversation
+from src.modules.email_delivery.models import Conversation, Email
 from src.modules.email_delivery.providers import EmailMaster, EmailProviderFactory
 from src.modules.email_delivery.reply_extraction import extract_reply_html, extract_reply_text
 from src.modules.email_delivery.repository import EmailDeliveryRepository
@@ -55,6 +56,14 @@ from src.modules.email_delivery.webhooks import (
     InboundEmail,
     WebhookParserFactory,
     WebhookParserMaster,
+)
+from src.modules.email_draft.followup_template import (
+    build_followup_subject,
+    render_followup_email_html,
+)
+from src.modules.email_draft.negotiation_template import (
+    build_negotiation_subject,
+    render_negotiation_email_html,
 )
 from src.observability import get_logger
 
@@ -364,6 +373,241 @@ class EmailDeliveryService:
         self._persist_sent_attachments(conversation.token, email.id, attachments)
         logger.info("Sent RFQ on conversation %s to %s", conversation.token, supplier_email)
         return conversation
+
+    # ── Outbound: follow-up / negotiation on an existing conversation ─────
+
+    def send_followup(
+        self,
+        *,
+        user_id: uuid.UUID,
+        conversation_id: uuid.UUID,
+        user_name: str,
+        sender_email: str | None,
+        contact_email: str,
+        submission_deadline: str,
+        rfq_reference: str = "",
+        portal_link: str = "",
+        include_qa_note: bool = False,
+        attachments: list[RawAttachment] | None = None,
+    ) -> Conversation:
+        """Send a template-rendered follow-up reminder on an existing conversation.
+
+        Unlike :meth:`send_draft`/:meth:`send_rfq` (which always open a new
+        conversation), this appends to one that already exists — the message
+        threads into the same supplier relationship the original RFQ opened,
+        reusing its token/Reply-To address so any future reply still matches
+        back exactly as it always has.
+
+        Args:
+            user_id: Sending user's id (must own ``conversation_id``).
+            conversation_id: The conversation to send the follow-up on.
+            user_name: Sending user's display name.
+            sender_email: The user's permanent ``sending_email``, or ``None``.
+            contact_email: The user's own email, shown as the buyer contact
+                in the rendered email (distinct from the ``From`` header).
+            submission_deadline: The (possibly new) deadline to highlight.
+            rfq_reference: Optional label naming the original RFQ; defaults
+                to the conversation's subject when left blank.
+            portal_link: Optional URL to a submission portal.
+            include_qa_note: Whether to include the "questions welcome" reminder.
+            attachments: Optional files to send with the follow-up.
+
+        Returns:
+            The conversation the follow-up was sent on.
+
+        Raises:
+            ConversationNotFoundError: If no such conversation exists for this user.
+            EmailProviderError: If the provider is misconfigured or the send fails.
+        """
+        conversation = self._require_conversation(user_id=user_id, conversation_id=conversation_id)
+        provider = self.get_provider(conversation.provider)
+        subject = build_followup_subject(conversation.subject)
+        body_html = render_followup_email_html(
+            original_issue_date=conversation.created_at.strftime("%B %d, %Y"),
+            submission_deadline=submission_deadline,
+            rfq_reference=rfq_reference or conversation.subject,
+            portal_link=portal_link,
+            include_qa_note=include_qa_note,
+            contact_name=user_name,
+            contact_email=contact_email,
+            company_name=provider.company_name,
+        )
+        self._append_to_conversation(
+            conversation=conversation,
+            provider=provider,
+            user_id=user_id,
+            user_name=user_name,
+            sender_email=sender_email,
+            subject=subject,
+            body_html=body_html,
+            attachments=attachments,
+        )
+        logger.info(
+            "Sent follow-up on conversation %s to %s", conversation.token, conversation.supplier_email
+        )
+        return conversation
+
+    def send_negotiation(
+        self,
+        *,
+        user_id: uuid.UUID,
+        conversation_id: uuid.UUID,
+        user_name: str,
+        sender_email: str | None,
+        response_deadline: str,
+        rfq_reference: str = "",
+        original_quoted_price: str = "",
+        target_price: str = "",
+        new_quantity: str = "",
+        quoted_terms: str = "",
+        requested_terms: str = "",
+        quoted_lead_time: str = "",
+        target_date: str = "",
+        clarifications: str = "",
+        portal_link: str = "",
+        include_meeting_request: bool = False,
+        attachments: list[RawAttachment] | None = None,
+    ) -> Conversation:
+        """Send a template-rendered negotiation/counter-offer on an existing conversation.
+
+        See :meth:`send_followup` for why this appends to ``conversation_id``
+        rather than opening a new one. Every adjustment argument is optional
+        and independently gated in the rendered email.
+
+        Args:
+            user_id: Sending user's id (must own ``conversation_id``).
+            conversation_id: The conversation to send the negotiation on.
+            user_name: Sending user's display name.
+            sender_email: The user's permanent ``sending_email``, or ``None``.
+            response_deadline: Deadline for the supplier to respond.
+            rfq_reference: Optional label naming the original RFQ; defaults
+                to the conversation's subject when left blank.
+            original_quoted_price: The supplier's quoted price, if negotiating price.
+            target_price: The buyer's target price, if negotiating price.
+            new_quantity: A proposed new order quantity, if negotiating volume.
+            quoted_terms: The supplier's quoted payment terms, if negotiating terms.
+            requested_terms: The buyer's requested payment terms.
+            quoted_lead_time: The supplier's quoted lead time, if negotiating schedule.
+            target_date: The buyer's requested delivery date.
+            clarifications: A free-text technical/scope note, if any.
+            portal_link: Optional URL to a revised-quote submission portal.
+            include_meeting_request: Whether to include the "let's hop on a call" note.
+            attachments: Optional files to send with the negotiation.
+
+        Returns:
+            The conversation the negotiation was sent on.
+
+        Raises:
+            ConversationNotFoundError: If no such conversation exists for this user.
+            EmailProviderError: If the provider is misconfigured or the send fails.
+        """
+        conversation = self._require_conversation(user_id=user_id, conversation_id=conversation_id)
+        provider = self.get_provider(conversation.provider)
+        subject = build_negotiation_subject(conversation.subject)
+        body_html = render_negotiation_email_html(
+            response_deadline=response_deadline,
+            rfq_reference=rfq_reference or conversation.subject,
+            original_quoted_price=original_quoted_price,
+            target_price=target_price,
+            new_quantity=new_quantity,
+            quoted_terms=quoted_terms,
+            requested_terms=requested_terms,
+            quoted_lead_time=quoted_lead_time,
+            target_date=target_date,
+            clarifications=clarifications,
+            portal_link=portal_link,
+            include_meeting_request=include_meeting_request,
+            company_name=provider.company_name,
+        )
+        self._append_to_conversation(
+            conversation=conversation,
+            provider=provider,
+            user_id=user_id,
+            user_name=user_name,
+            sender_email=sender_email,
+            subject=subject,
+            body_html=body_html,
+            attachments=attachments,
+        )
+        logger.info(
+            "Sent negotiation on conversation %s to %s",
+            conversation.token,
+            conversation.supplier_email,
+        )
+        return conversation
+
+    def _require_conversation(
+        self, *, user_id: uuid.UUID, conversation_id: uuid.UUID
+    ) -> Conversation:
+        """Fetch a conversation owned by ``user_id``, or raise if it doesn't exist."""
+        conversation = self._repository.get_for_user(
+            user_id=user_id, conversation_id=conversation_id
+        )
+        if conversation is None:
+            raise ConversationNotFoundError(f"No conversation {conversation_id} found for this user.")
+        return conversation
+
+    def _append_to_conversation(
+        self,
+        *,
+        conversation: Conversation,
+        provider: EmailMaster,
+        user_id: uuid.UUID,
+        user_name: str,
+        sender_email: str | None,
+        subject: str,
+        body_html: str,
+        attachments: list[RawAttachment] | None = None,
+    ) -> Email:
+        """Send one more HTML message on an already-open conversation.
+
+        Reuses ``conversation``'s existing token/Reply-To address rather than
+        minting a new one, so the message threads into the same supplier
+        relationship the original send opened.
+
+        Args:
+            conversation: The existing, owned conversation to send on.
+            provider: The conversation's outbound provider (already resolved).
+            user_id: Sending user's id (shown in the tracked-reference footer).
+            user_name: Sending user's display name (``From`` display name).
+            sender_email: The user's permanent ``sending_email``, or ``None``.
+            subject: The rendered subject line.
+            body_html: The rendered, complete HTML body.
+            attachments: Optional files to send with the message.
+
+        Returns:
+            The persisted :class:`Email` row for the sent message.
+        """
+        html_body = provider.wrap_prerendered_html(
+            user_id=str(user_id), conv_id=conversation.token, html_body=body_html
+        )
+        text_body = provider.html_to_text(body_html)
+        from_email = sender_email or provider.build_sending_email(user_name)
+        result = provider.send_email(
+            from_email=from_email,
+            from_name=user_name,
+            to_email=conversation.supplier_email,
+            to_name=conversation.supplier_name,
+            subject=subject,
+            html_body=html_body,
+            text_body=text_body,
+            reply_to=conversation.reply_to_address,
+            attachments=self._provider_attachments(attachments),
+        )
+        email = self._repository.add_email(
+            conversation_id=conversation.id,
+            direction=EmailDirection.SENT,
+            from_email=from_email,
+            to_email=conversation.supplier_email,
+            subject=subject,
+            body_text=text_body,
+            body_html=html_body,
+            provider=result.get("provider"),
+            provider_message_id=result.get("provider_message_id"),
+            status_code=result.get("status_code"),
+        )
+        self._persist_sent_attachments(conversation.token, email.id, attachments)
+        return email
 
     @staticmethod
     def _provider_attachments(

@@ -40,6 +40,60 @@ class RfqSendRequest(BaseModel):
     target_price: str = Field(min_length=1, max_length=64)
 
 
+class FollowupSendRequest(BaseModel):
+    """Input contract for sending a follow-up reminder on an existing conversation.
+
+    Attributes:
+        submission_deadline: The (possibly new) deadline to highlight.
+        rfq_reference: Optional label naming the original RFQ; defaults to the
+            conversation's subject when left blank.
+        portal_link: Optional URL to a submission portal.
+        include_qa_note: Whether to include the "questions welcome" reminder.
+    """
+
+    submission_deadline: str = Field(min_length=1, max_length=255)
+    rfq_reference: str = Field(default="", max_length=255)
+    portal_link: str = Field(default="", max_length=2048)
+    include_qa_note: bool = False
+
+
+class NegotiationSendRequest(BaseModel):
+    """Input contract for sending a negotiation/counter-offer on an existing conversation.
+
+    Every adjustment is optional and independently gated in the rendered
+    email — a pricing/volume/terms/lead-time/clarification block only
+    appears once its value(s) are supplied.
+
+    Attributes:
+        response_deadline: Deadline for the supplier to respond.
+        rfq_reference: Optional label naming the original RFQ; defaults to
+            the conversation's subject when left blank.
+        original_quoted_price: The supplier's quoted price, if negotiating price.
+        target_price: The buyer's target price, if negotiating price.
+        new_quantity: A proposed new order quantity, if negotiating volume.
+        quoted_terms: The supplier's quoted payment terms, if negotiating terms.
+        requested_terms: The buyer's requested payment terms.
+        quoted_lead_time: The supplier's quoted lead time, if negotiating schedule.
+        target_date: The buyer's requested delivery date.
+        clarifications: A free-text technical/scope note, if any.
+        portal_link: Optional URL to a revised-quote submission portal.
+        include_meeting_request: Whether to include the "let's hop on a call" note.
+    """
+
+    response_deadline: str = Field(min_length=1, max_length=255)
+    rfq_reference: str = Field(default="", max_length=255)
+    original_quoted_price: str = Field(default="", max_length=64)
+    target_price: str = Field(default="", max_length=64)
+    new_quantity: str = Field(default="", max_length=64)
+    quoted_terms: str = Field(default="", max_length=255)
+    requested_terms: str = Field(default="", max_length=255)
+    quoted_lead_time: str = Field(default="", max_length=255)
+    target_date: str = Field(default="", max_length=64)
+    clarifications: str = Field(default="", max_length=2000)
+    portal_link: str = Field(default="", max_length=2048)
+    include_meeting_request: bool = False
+
+
 class AttachmentRead(BaseModel):
     """Output contract for a stored attachment."""
 

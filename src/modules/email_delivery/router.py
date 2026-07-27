@@ -23,12 +23,14 @@ from pydantic import ValidationError
 from src.modules.auth.deps import RequiredCookieUserDep
 from src.modules.email_delivery.attachments import RawAttachment
 from src.modules.email_delivery.deps import EmailDeliveryServiceDep
-from src.modules.email_delivery.exceptions import EmailProviderError
+from src.modules.email_delivery.exceptions import ConversationNotFoundError, EmailProviderError
 from src.modules.email_delivery.providers import EmailMaster
 from src.modules.email_delivery.schemas import (
     ConversationDetail,
     ConversationRead,
+    FollowupSendRequest,
     InboundResult,
+    NegotiationSendRequest,
     RfqSendRequest,
 )
 from src.modules.email_draft.deps import EmailDraftServiceDep
@@ -245,6 +247,187 @@ def send_rfq(
             sender_phone=current_user.phone_number or "",
             attachments=_read_uploads(attachments),
         )
+    except EmailProviderError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    return ConversationRead.model_validate(conversation)
+
+
+@router.post(
+    "/conversations/{conversation_id}/follow-up",
+    response_model=ConversationRead,
+    summary="Send a template-rendered follow-up reminder on an existing conversation",
+)
+def send_followup(
+    conversation_id: uuid.UUID,
+    current_user: RequiredCookieUserDep,
+    email_delivery_service: EmailDeliveryServiceDep,
+    submission_deadline: Annotated[str, Form()],
+    rfq_reference: Annotated[str, Form()] = "",
+    portal_link: Annotated[str, Form()] = "",
+    include_qa_note: Annotated[bool, Form()] = False,
+    attachments: Annotated[list[UploadFile], File()] = [],  # noqa: B006 - FastAPI form default
+) -> ConversationRead:
+    """Send a follow-up reminder on an existing tracked conversation.
+
+    Unlike ``/conversations/rfq`` (which always opens a new conversation),
+    this appends to one that already exists, so it threads into the same
+    supplier relationship. Accepts ``multipart/form-data`` so files can ride
+    along, matching the other send endpoints.
+
+    Args:
+        conversation_id: The conversation to send the follow-up on.
+        current_user: The authenticated user (sender/owner).
+        email_delivery_service: Performs the send and persistence.
+        submission_deadline: The (possibly new) deadline to highlight.
+        rfq_reference: Optional label naming the original RFQ.
+        portal_link: Optional URL to a submission portal.
+        include_qa_note: Whether to include the "questions welcome" reminder.
+        attachments: Optional uploaded files to attach to the follow-up.
+
+    Returns:
+        The conversation summary.
+
+    Raises:
+        HTTPException: ``422`` if the fields are invalid; ``404`` if no such
+            conversation exists for this user; ``502`` if the provider send fails.
+    """
+    try:
+        payload = FollowupSendRequest(
+            submission_deadline=submission_deadline,
+            rfq_reference=rfq_reference,
+            portal_link=portal_link,
+            include_qa_note=include_qa_note,
+        )
+    except ValidationError as exc:
+        detail = [
+            {"loc": list(err.get("loc", ())), "msg": err.get("msg", "invalid value")}
+            for err in exc.errors()
+        ]
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=detail
+        ) from exc
+
+    try:
+        conversation = email_delivery_service.send_followup(
+            user_id=current_user.id,
+            conversation_id=conversation_id,
+            user_name=current_user.full_name,
+            sender_email=current_user.sending_email,
+            contact_email=current_user.email,
+            submission_deadline=payload.submission_deadline,
+            rfq_reference=payload.rfq_reference,
+            portal_link=payload.portal_link,
+            include_qa_note=payload.include_qa_note,
+            attachments=_read_uploads(attachments),
+        )
+    except ConversationNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except EmailProviderError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    return ConversationRead.model_validate(conversation)
+
+
+@router.post(
+    "/conversations/{conversation_id}/negotiation",
+    response_model=ConversationRead,
+    summary="Send a template-rendered negotiation/counter-offer on an existing conversation",
+)
+def send_negotiation(
+    conversation_id: uuid.UUID,
+    current_user: RequiredCookieUserDep,
+    email_delivery_service: EmailDeliveryServiceDep,
+    response_deadline: Annotated[str, Form()],
+    rfq_reference: Annotated[str, Form()] = "",
+    original_quoted_price: Annotated[str, Form()] = "",
+    target_price: Annotated[str, Form()] = "",
+    new_quantity: Annotated[str, Form()] = "",
+    quoted_terms: Annotated[str, Form()] = "",
+    requested_terms: Annotated[str, Form()] = "",
+    quoted_lead_time: Annotated[str, Form()] = "",
+    target_date: Annotated[str, Form()] = "",
+    clarifications: Annotated[str, Form()] = "",
+    portal_link: Annotated[str, Form()] = "",
+    include_meeting_request: Annotated[bool, Form()] = False,
+    attachments: Annotated[list[UploadFile], File()] = [],  # noqa: B006 - FastAPI form default
+) -> ConversationRead:
+    """Send a negotiation/counter-offer on an existing tracked conversation.
+
+    Unlike ``/conversations/rfq`` (which always opens a new conversation),
+    this appends to one that already exists, so it threads into the same
+    supplier relationship. Every adjustment field is optional and
+    independently gated in the rendered email.
+
+    Args:
+        conversation_id: The conversation to send the negotiation on.
+        current_user: The authenticated user (sender/owner).
+        email_delivery_service: Performs the send and persistence.
+        response_deadline: Deadline for the supplier to respond.
+        rfq_reference: Optional label naming the original RFQ.
+        original_quoted_price: The supplier's quoted price, if negotiating price.
+        target_price: The buyer's target price, if negotiating price.
+        new_quantity: A proposed new order quantity, if negotiating volume.
+        quoted_terms: The supplier's quoted payment terms, if negotiating terms.
+        requested_terms: The buyer's requested payment terms.
+        quoted_lead_time: The supplier's quoted lead time, if negotiating schedule.
+        target_date: The buyer's requested delivery date.
+        clarifications: A free-text technical/scope note, if any.
+        portal_link: Optional URL to a revised-quote submission portal.
+        include_meeting_request: Whether to include the "let's hop on a call" note.
+        attachments: Optional uploaded files to attach to the negotiation.
+
+    Returns:
+        The conversation summary.
+
+    Raises:
+        HTTPException: ``422`` if the fields are invalid; ``404`` if no such
+            conversation exists for this user; ``502`` if the provider send fails.
+    """
+    try:
+        payload = NegotiationSendRequest(
+            response_deadline=response_deadline,
+            rfq_reference=rfq_reference,
+            original_quoted_price=original_quoted_price,
+            target_price=target_price,
+            new_quantity=new_quantity,
+            quoted_terms=quoted_terms,
+            requested_terms=requested_terms,
+            quoted_lead_time=quoted_lead_time,
+            target_date=target_date,
+            clarifications=clarifications,
+            portal_link=portal_link,
+            include_meeting_request=include_meeting_request,
+        )
+    except ValidationError as exc:
+        detail = [
+            {"loc": list(err.get("loc", ())), "msg": err.get("msg", "invalid value")}
+            for err in exc.errors()
+        ]
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=detail
+        ) from exc
+
+    try:
+        conversation = email_delivery_service.send_negotiation(
+            user_id=current_user.id,
+            conversation_id=conversation_id,
+            user_name=current_user.full_name,
+            sender_email=current_user.sending_email,
+            response_deadline=payload.response_deadline,
+            rfq_reference=payload.rfq_reference,
+            original_quoted_price=payload.original_quoted_price,
+            target_price=payload.target_price,
+            new_quantity=payload.new_quantity,
+            quoted_terms=payload.quoted_terms,
+            requested_terms=payload.requested_terms,
+            quoted_lead_time=payload.quoted_lead_time,
+            target_date=payload.target_date,
+            clarifications=payload.clarifications,
+            portal_link=payload.portal_link,
+            include_meeting_request=payload.include_meeting_request,
+            attachments=_read_uploads(attachments),
+        )
+    except ConversationNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except EmailProviderError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     return ConversationRead.model_validate(conversation)

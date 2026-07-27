@@ -16,31 +16,14 @@ The template encodes two authoring conventions this module implements:
 
 from __future__ import annotations
 
-import html
-import re
 from datetime import UTC, datetime
 
 from src.config.settings import PROJECT_ROOT
+from src.modules.email_draft.template_engine import combine as _combine
+from src.modules.email_draft.template_engine import has_value as _has_value
+from src.modules.email_draft.template_engine import render_template
 
 _TEMPLATE_PATH = PROJECT_ROOT / "templates" / "email_templates" / "rfq_email_template.html"
-
-# Values that count as "no real answer" — mirrors
-# ``modules.sample_data.service._PLACEHOLDER_VALUES`` — so a field the
-# sample-data agent left blank/placeholder doesn't render an empty section.
-_PLACEHOLDER_VALUES = {"", "tbd", "n/a", "na", "todo", "unknown", "none"}
-
-_CONDITIONAL_RE = re.compile(r"<!-- BEGIN-IF: (\w+) -->(.*?)<!-- END-IF: \1 -->", re.DOTALL)
-_TOKEN_RE = re.compile(r"\{\{(\w+)\}\}")
-
-
-def _has_value(value: str | None) -> bool:
-    """Return whether ``value`` is a real, concrete answer (not blank/placeholder)."""
-    return bool(value) and value.strip().lower() not in _PLACEHOLDER_VALUES
-
-
-def _combine(*parts: str) -> str:
-    """Join the given parts that have a real value with an em dash separator."""
-    return " — ".join(part.strip() for part in parts if _has_value(part))
 
 
 def build_rfq_graft_subject(fields: dict[str, str]) -> str:
@@ -143,10 +126,4 @@ def render_rfq_email_html(
     }
 
     template = _TEMPLATE_PATH.read_text(encoding="utf-8")
-
-    def _resolve_conditional(match: re.Match[str]) -> str:
-        key, body = match.group(1), match.group(2)
-        return body if conditions.get(key, False) else ""
-
-    rendered = _CONDITIONAL_RE.sub(_resolve_conditional, template)
-    return _TOKEN_RE.sub(lambda m: html.escape(values.get(m.group(1), "")), rendered)
+    return render_template(template, values, conditions)
