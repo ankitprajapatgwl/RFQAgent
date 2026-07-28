@@ -8,8 +8,9 @@ rather than spread across shared ``domain``/``services``/``api`` layers.
 Available modules:
     auth           -- user registration, login, session management
     email_patterns -- shared EmailType vocabulary + skill catalog (not a
-                      standalone feature — read by sample_data)
+                      standalone feature — read by sample_data and email_draft)
     sample_data    -- hard-coded sample RFQ scenarios for the dashboard picker
+    email_draft    -- LLM-backed email drafting, review, and verification
     email_delivery -- outbound sending (verified draft / RFQ) + inbound reply
                       tracking via a provider-agnostic webhook
     worker         -- background thread that polls for unprocessed received
