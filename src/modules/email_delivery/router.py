@@ -25,6 +25,7 @@ from src.modules.email_delivery.attachments import RawAttachment
 from src.modules.email_delivery.deps import EmailDeliveryServiceDep
 from src.modules.email_delivery.exceptions import ConversationNotFoundError, EmailProviderError
 from src.modules.email_delivery.providers import EmailMaster
+from src.modules.email_draft.deps import EmailDraftServiceDep
 from src.modules.email_delivery.schemas import (
     ConversationDetail,
     ConversationRead,
@@ -115,6 +116,68 @@ _INBOUND_STATUS_CODES = {
     status_code=status.HTTP_201_CREATED,
     summary="Send a human-verified draft, opening a tracked conversation",
 )
+def send_verified_draft(
+    draft_id: uuid.UUID,
+    current_user: RequiredCookieUserDep,
+    email_draft_service: EmailDraftServiceDep,
+    email_delivery_service: EmailDeliveryServiceDep,
+    attachments: Annotated[list[UploadFile], File()] = [],  # noqa: B006 - FastAPI form default
+) -> ConversationRead:
+    """Send an already-verified draft and start tracking its conversation.
+
+    The draft must be verified and carry a recipient — sending is never a side
+    effect of drafting or editing, honouring the human-approval gate. Any files
+    attached on the draft page are transmitted with the email and persisted.
+
+    Args:
+        draft_id: The draft to send.
+        current_user: The authenticated user (sender/owner).
+        email_draft_service: Used to fetch the verified draft.
+        email_delivery_service: Performs the send and persistence.
+        attachments: Optional uploaded files to attach to the email.
+
+    Returns:
+        The created conversation summary.
+
+    Raises:
+        HTTPException: ``404`` if the draft doesn't exist; ``409`` if it isn't
+            verified or has no recipient; ``502`` if the provider send fails.
+    """
+    from src.modules.email_draft.enums import DraftStatus
+    from src.modules.email_draft.exceptions import EmailDraftNotFoundError
+
+    try:
+        draft = email_draft_service.get_saved(user_id=current_user.id, draft_id=draft_id)
+    except EmailDraftNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+    if draft.status != DraftStatus.VERIFIED.value:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This draft must be verified before it can be sent.",
+        )
+    if not draft.recipient:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This draft has no recipient address to send to.",
+        )
+
+    greeting_source = EmailMaster.html_to_text(draft.body) if draft.is_html else draft.body
+    try:
+        conversation = email_delivery_service.send_draft(
+            user_id=current_user.id,
+            user_name=current_user.full_name,
+            sender_email=current_user.sending_email,
+            recipient=draft.recipient,
+            recipient_name=extract_recipient_name(greeting_source),
+            subject=draft.subject,
+            body_text=draft.body,
+            is_html_body=draft.is_html,
+            attachments=_read_uploads(attachments),
+        )
+    except EmailProviderError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    return ConversationRead.model_validate(conversation)
 
 
 @router.post(
