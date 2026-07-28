@@ -34,7 +34,7 @@ logger = get_logger(__name__)
 class Base(DeclarativeBase):
     """Declarative base class shared by every module's ORM models."""
 
-# Retry policy for the initial connection — a freshly started Postgres container
+# Retry policy for the initial connection — a freshly started PostgreSQL container
 # may not accept connections immediately (coding standards: every external call
 # gets a timeout and a bounded retry policy).
 _MAX_CONNECT_RETRIES = 10
@@ -42,14 +42,13 @@ _RETRY_BACKOFF_SECONDS = 2.0
 
 # Additive columns introduced after the initial schema shipped. ``create_all``
 # only creates missing *tables*, never new columns on an existing one, and this
-# project carries no Alembic setup — so a plain SQLite/Postgres ``ADD COLUMN``
+# project carries no Alembic setup — so a plain Postgres ``ADD COLUMN``
 # is applied idempotently at startup. Each entry is ``table -> {column:
 # column_type_ddl}``; extend it when a column is added to a model that may
 # already exist in a deployed database. Prefer nullable, no-default columns
 # (portable everywhere); a ``NOT NULL DEFAULT <const>`` is also portable
-# (SQLite + Postgres) and backfills existing rows — used for
-# ``email_messages.processing_status`` so replies stored before the worker
-# shipped start out ``pending`` and get picked up.
+# and backfills existing rows — used for ``email_messages.processing_status``
+# so replies stored before the worker shipped start out ``pending`` and get picked up.
 _ADDITIVE_COLUMNS: dict[str, dict[str, str]] = {
     "users": {"phone_number": "VARCHAR(32)"},
     "email_messages": {"processing_status": "VARCHAR(16) NOT NULL DEFAULT 'pending'"},
@@ -57,42 +56,24 @@ _ADDITIVE_COLUMNS: dict[str, dict[str, str]] = {
 }
 
 
-def _configure_sqlite_connection(engine: Engine) -> None:
-    """Apply per-connection SQLite pragmas the app relies on.
+def _configure_postgresql_connection(engine: Engine) -> None:
+    """Apply per-connection PostgreSQL settings the app relies on.
 
-    * ``foreign_keys=ON`` — SQLite disables FK checks by default, so the
-      ``ondelete="CASCADE"`` constraints declared on every module's models are
-      inert without it. With it on, deleting a conversation cascades through its
-      emails, attachments and extractions at the database level — matching how
-      the same schema behaves on Postgres, where FK enforcement is always on.
-    * ``journal_mode=WAL`` — write-ahead logging lets a reader and a writer work
-      concurrently instead of blocking each other. This matters because the
-      background extraction worker holds its read transaction open across a
-      multi-second LLM call while inbound webhooks keep writing replies; under
-      the default rollback journal those writers would be locked out for the
-      whole call.
-    * ``busy_timeout=5000`` — wait up to 5s for a lock rather than failing
-      immediately with "database is locked" during the brief window the worker
-      commits its extraction.
-
-    All three are per-connection and no-ops on an in-memory test database, so
-    they are safe to issue on every connect.
+    PostgreSQL enforces foreign key constraints by default, enabling the
+    ``ondelete="CASCADE"`` constraints declared on every module's models to
+    cascade deletes through the schema.
 
     Args:
-        engine: The SQLite engine to attach the pragma listener to.
+        engine: The PostgreSQL engine to attach the listener to.
     """
 
     @event.listens_for(engine, "connect")
-    def _set_sqlite_pragma(
+    def _set_postgresql_options(
         dbapi_connection: DBAPIConnection, _connection_record: ConnectionPoolEntry
     ) -> None:
-        cursor = dbapi_connection.cursor()
-        try:
-            cursor.execute("PRAGMA foreign_keys=ON")
-            cursor.execute("PRAGMA journal_mode=WAL")
-            cursor.execute("PRAGMA busy_timeout=5000")
-        finally:
-            cursor.close()
+        # PostgreSQL has FK enforcement on by default; no additional setup needed.
+        # Connection pooling is handled by SQLAlchemy's pool_pre_ping.
+        pass
 
 
 class Database:
@@ -112,10 +93,10 @@ class Database:
 
     @staticmethod
     def _create_engine(settings: Settings) -> Engine:
-        """Build a SQLAlchemy engine, applying SQLite-specific tuning.
+        """Build a SQLAlchemy engine for PostgreSQL.
 
-        For SQLite the parent directory is created and ``check_same_thread`` is
-        disabled so the connection can be shared across FastAPI's threadpool.
+        PostgreSQL is the configured database backend. The engine is created
+        with connection pooling and health checks enabled.
 
         Args:
             settings: Application settings.
@@ -131,13 +112,15 @@ class Database:
                 connect_args={"check_same_thread": False},
                 echo=settings.debug and settings.environment == "development",
             )
-            _configure_sqlite_connection(engine)
             return engine
-        return create_engine(
+        engine = create_engine(
             settings.database_url,
             pool_pre_ping=True,
-            echo=False,
+            echo=settings.debug and settings.environment == "development",
         )
+        if settings.is_postgresql:
+            _configure_postgresql_connection(engine)
+        return engine
 
     def create_all(self) -> None:
         """Create all tables, retrying while the database is still starting up.

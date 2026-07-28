@@ -69,8 +69,8 @@ class Settings(BaseSettings):
     port: int = 8000
 
     database_url: str = Field(
-        default=f"sqlite:///{PROJECT_ROOT / 'data' / 'rfq_agent.db'}",
-        description="SQLAlchemy database URL.",
+        default="postgresql://user:password@localhost:5432/rfq_agent",
+        description="SQLAlchemy database URL. For PostgreSQL, format: postgresql://user:password@host:port/dbname",
     )
 
     jwt_secret_key: str = Field(
@@ -176,6 +176,11 @@ class Settings(BaseSettings):
     def is_sqlite(self) -> bool:
         """Return ``True`` when the configured database is SQLite."""
         return self.database_url.startswith("sqlite")
+
+    @property
+    def is_postgresql(self) -> bool:
+        """Return ``True`` when the configured database is PostgreSQL."""
+        return self.database_url.startswith("postgresql") or self.database_url.startswith("postgres")
 
     @property
     def attachments_dir(self) -> Path:
