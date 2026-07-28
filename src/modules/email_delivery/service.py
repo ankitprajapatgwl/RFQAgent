@@ -61,6 +61,10 @@ from src.modules.email_draft.followup_template import (
     build_followup_subject,
     render_followup_email_html,
 )
+from src.modules.email_draft.information_request_template import (
+    build_information_request_subject,
+    render_information_request_email_html,
+)
 from src.modules.email_draft.negotiation_template import (
     build_negotiation_subject,
     render_negotiation_email_html,
@@ -444,6 +448,75 @@ class EmailDeliveryService:
         )
         logger.info(
             "Sent follow-up on conversation %s to %s", conversation.token, conversation.supplier_email
+        )
+        return conversation
+
+    def send_information_request(
+        self,
+        *,
+        user_id: uuid.UUID,
+        conversation_id: uuid.UUID,
+        user_name: str,
+        sender_email: str | None,
+        contact_email: str,
+        missing_fields: str,
+        additional_requests: str = "",
+        deadline: str = "",
+        include_urgency_note: bool = False,
+        attachments: list[RawAttachment] | None = None,
+    ) -> Conversation:
+        """Send an information request email on an existing conversation.
+
+        Unlike :meth:`send_draft`/:meth:`send_rfq` (which always open a new
+        conversation), this appends to one that already exists — the message
+        threads into the same supplier relationship the original RFQ opened,
+        reusing its token/Reply-To address so any future reply still matches
+        back exactly as it always has.
+
+        Args:
+            user_id: Sending user's id (must own ``conversation_id``).
+            conversation_id: The conversation to send the information request on.
+            user_name: Sending user's display name.
+            sender_email: The user's permanent ``sending_email``, or ``None``.
+            contact_email: The user's own email, shown as the buyer contact
+                in the rendered email (distinct from the ``From`` header).
+            missing_fields: Comma-separated list of required missing fields.
+            additional_requests: Any additional information or clarifications needed.
+            deadline: Optional deadline for providing the information.
+            include_urgency_note: Whether to emphasize urgency of the request.
+            attachments: Optional files to send with the request.
+
+        Returns:
+            The conversation the information request was sent on.
+
+        Raises:
+            ConversationNotFoundError: If no such conversation exists for this user.
+            EmailProviderError: If the provider is misconfigured or the send fails.
+        """
+        conversation = self._require_conversation(user_id=user_id, conversation_id=conversation_id)
+        provider = self.get_provider(conversation.provider)
+        subject = build_information_request_subject(conversation.subject)
+        body_html = render_information_request_email_html(
+            missing_fields=missing_fields,
+            additional_requests=additional_requests,
+            deadline=deadline,
+            include_urgency_note=include_urgency_note,
+            contact_name=user_name,
+            contact_email=contact_email,
+            company_name=provider.company_name,
+        )
+        self._append_to_conversation(
+            conversation=conversation,
+            provider=provider,
+            user_id=user_id,
+            user_name=user_name,
+            sender_email=sender_email,
+            subject=subject,
+            body_html=body_html,
+            attachments=attachments,
+        )
+        logger.info(
+            "Sent information request on conversation %s to %s", conversation.token, conversation.supplier_email
         )
         return conversation
 

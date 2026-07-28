@@ -1,0 +1,151 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Additional Information Required</title>
+
+    <!--[if mso]>
+    <style type="text/css">
+        body, table, td, div, p, a { font-family: Arial, sans-serif !important; }
+    </style>
+    <![endif]-->
+    <style type="text/css">
+        body {
+            margin: 0 !important;
+            padding: 0 !important;
+            min-width: 100% !important;
+        }
+        table {
+            border-spacing: 0;
+            border-collapse: collapse;
+        }
+        td, p, span, a {
+            font-family: Arial, sans-serif;
+        }
+        img {
+            border: 0;
+            line-height: 100%;
+            outline: none;
+            text-decoration: none;
+            display: block;
+        }
+        a {
+            color: #0056b3;
+            text-decoration: none;
+        }
+
+        /* Responsive styles */
+        @media screen and (max-width: 650px) {
+            .main {
+                width: 100% !important;
+                border-radius: 0 !important;
+                border: none !important;
+                margin-top: 0 !important;
+            }
+            .inner-padding {
+                padding: 20px !important;
+            }
+            .data-table th, .data-table td {
+                display: block !important;
+                width: 100% !important;
+                box-sizing: border-box;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+            }
+            .data-table th {
+                padding-bottom: 2px !important;
+            }
+            .data-table td {
+                padding-top: 2px !important;
+                padding-bottom: 15px !important;
+            }
+        }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; min-width: 100%; background-color: #f4f4f4;">
+    <div style="width: 100%; table-layout: fixed; background-color: #f4f4f4; padding-bottom: 40px;">
+        <!--[if mso]>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+        <td align="center" style="padding: 0;">
+        <![endif]-->
+        <table class="main" width="650" cellpadding="0" cellspacing="0" border="0" align="center" style="background-color: #ffffff; margin: 20px auto 0 auto; width: 100%; max-width: 650px; border: 1px solid #e0e0e0; border-radius: 4px; overflow: hidden;">
+            <!-- Header Section -->
+            <tr>
+                <td bgcolor="#0066cc" style="padding: 20px 30px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-family: Arial, sans-serif;">Additional Information Required</h1>
+                </td>
+            </tr>
+
+            <!-- Body Section -->
+            <tr>
+                <td class="inner-padding" style="padding: 30px; font-family: Arial, sans-serif; color: #333333;">
+                    <p style="margin: 0 0 15px 0; font-size: 15px; line-height: 1.6; color: #333333;">Dear Valued Supplier,</p>
+                    <p style="margin: 0 0 15px 0; font-size: 15px; line-height: 1.6; color: #333333;">Thank you for your prompt response to our request for quotation. To proceed with your proposal, we require some additional information to complete our evaluation.</p>
+
+                    <!-- Missing Fields Box -->
+                    <div style="background-color: #f9fafe; border-left: 4px solid #0066cc; padding: 20px; margin-bottom: 25px;">
+                        <p style="margin: 0 0 10px 0; font-size: 14px; font-weight: bold; color: #333333;">Required Information:</p>
+                        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #333333; white-space: pre-wrap;">{{missingFields}}</p>
+                    </div>
+
+                    <!-- Additional Requests Section -->
+                    <!-- BEGIN-IF: additionalRequests -->
+                    <div style="background-color: #f0f8ff; border-left: 4px solid #0066cc; padding: 20px; margin-bottom: 25px;">
+                        <p style="margin: 0 0 10px 0; font-size: 14px; font-weight: bold; color: #333333;">Additional Requests:</p>
+                        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #333333; white-space: pre-wrap;">{{additionalRequests}}</p>
+                    </div>
+                    <!-- END-IF: additionalRequests -->
+
+                    <!-- Deadline Section -->
+                    <!-- BEGIN-IF: deadline -->
+                    <div style="background-color: #fff4e6; border-left: 4px solid #ff9800; padding: 20px; margin-bottom: 25px;">
+                        <p style="margin: 0 0 10px 0; font-size: 14px; font-weight: bold; color: #333333;">Timeline:</p>
+                        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #333333;">Please provide the requested information by <strong>{{deadline}}</strong>.</p>
+                    </div>
+                    <!-- END-IF: deadline -->
+
+                    <!-- Urgency Note -->
+                    <!-- BEGIN-IF: urgency -->
+                    <p style="margin: 0 0 15px 0; font-size: 14px; line-height: 1.6; color: #d32f2f; font-weight: bold;">⚠️ This information is critical to moving forward with your proposal. Please prioritize your response.</p>
+                    <!-- END-IF: urgency -->
+
+                    <p style="margin: 0 0 15px 0; font-size: 15px; line-height: 1.6; color: #333333;">Once we receive this information, we will be able to review your proposal more thoroughly.</p>
+
+                    <!-- Contact Information Section -->
+                    <!-- BEGIN-IF: buyerContact -->
+                    <div style="background-color: #f9fafe; border-left: 4px solid #0066cc; padding: 20px; margin-bottom: 25px;">
+                        <p style="margin: 0 0 10px 0; font-size: 14px; font-weight: bold; color: #333333;">Contact Information:</p>
+                        <p style="margin: 0 0 5px 0; font-size: 14px; color: #333333;">
+                            <strong>Name:</strong> {{buyerName}}<br/>
+                            <strong>Email:</strong> <a href="mailto:{{buyerEmail}}" style="color: #0056b3;">{{buyerEmail}}</a>
+                        </p>
+                    </div>
+                    <!-- END-IF: buyerContact -->
+
+                    <p style="margin: 0 0 15px 0; font-size: 15px; line-height: 1.6; color: #333333;">Thank you for your cooperation and attention to this request. We look forward to your prompt response.</p>
+
+                    <p style="margin: 0 0 5px 0; font-size: 15px; line-height: 1.6; color: #333333;">Best regards,</p>
+                    <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #333333;"><strong>{{companyName}}</strong></p>
+                </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+                <td style="padding: 20px; text-align: center; background-color: #f9fafe; border-top: 1px solid #e0e0e0;">
+                    <p style="margin: 0; font-size: 12px; color: #999999; line-height: 1.5;">
+                        © {{companyName}}. All rights reserved.
+                    </p>
+                </td>
+            </tr>
+        </table>
+        <!--[if mso]>
+        </td>
+        </tr>
+        </table>
+        <![endif]-->
+    </div>
+</body>
+</html>

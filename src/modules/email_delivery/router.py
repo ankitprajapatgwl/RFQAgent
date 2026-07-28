@@ -30,6 +30,7 @@ from src.modules.email_delivery.schemas import (
     ConversationRead,
     FollowupSendRequest,
     InboundResult,
+    InformationRequestSendRequest,
     NegotiationSendRequest,
     RfqSendRequest,
 )
@@ -256,6 +257,79 @@ def send_followup(
             rfq_reference=payload.rfq_reference,
             portal_link=payload.portal_link,
             include_qa_note=payload.include_qa_note,
+            attachments=_read_uploads(attachments),
+        )
+    except ConversationNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except EmailProviderError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    return ConversationRead.model_validate(conversation)
+
+
+@router.post(
+    "/conversations/{conversation_id}/information-request",
+    response_model=ConversationRead,
+    summary="Send an information request email on an existing conversation",
+)
+def send_information_request(
+    conversation_id: uuid.UUID,
+    current_user: RequiredCookieUserDep,
+    email_delivery_service: EmailDeliveryServiceDep,
+    missing_fields: Annotated[str, Form()],
+    additional_requests: Annotated[str, Form()] = "",
+    deadline: Annotated[str, Form()] = "",
+    include_urgency_note: Annotated[bool, Form()] = False,
+    attachments: Annotated[list[UploadFile], File()] = [],  # noqa: B006 - FastAPI form default
+) -> ConversationRead:
+    """Send an information request email on an existing tracked conversation.
+
+    Sent when supplier's response lacks required information or fields. Allows
+    dynamic field requests to be sent on the same conversation thread.
+
+    Args:
+        conversation_id: The conversation to send the information request on.
+        current_user: The authenticated user (sender/owner).
+        email_delivery_service: Performs the send and persistence.
+        missing_fields: Comma-separated list of required missing fields.
+        additional_requests: Any additional information or clarifications needed.
+        deadline: Optional deadline for providing the information.
+        include_urgency_note: Whether to emphasize urgency of the request.
+        attachments: Optional uploaded files to attach.
+
+    Returns:
+        The conversation summary.
+
+    Raises:
+        HTTPException: ``422`` if the fields are invalid; ``404`` if no such
+            conversation exists for this user; ``502`` if the provider send fails.
+    """
+    try:
+        payload = InformationRequestSendRequest(
+            missing_fields=missing_fields,
+            additional_requests=additional_requests,
+            deadline=deadline,
+            include_urgency_note=include_urgency_note,
+        )
+    except ValidationError as exc:
+        detail = [
+            {"loc": list(err.get("loc", ())), "msg": err.get("msg", "invalid value")}
+            for err in exc.errors()
+        ]
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=detail
+        ) from exc
+
+    try:
+        conversation = email_delivery_service.send_information_request(
+            user_id=current_user.id,
+            conversation_id=conversation_id,
+            user_name=current_user.full_name,
+            sender_email=current_user.sending_email,
+            contact_email=current_user.email,
+            missing_fields=payload.missing_fields,
+            additional_requests=payload.additional_requests,
+            deadline=payload.deadline,
+            include_urgency_note=payload.include_urgency_note,
             attachments=_read_uploads(attachments),
         )
     except ConversationNotFoundError as exc:

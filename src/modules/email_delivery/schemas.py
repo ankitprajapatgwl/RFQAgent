@@ -94,6 +94,25 @@ class NegotiationSendRequest(BaseModel):
     include_meeting_request: bool = False
 
 
+class InformationRequestSendRequest(BaseModel):
+    """Input contract for sending an information request on an existing conversation.
+
+    Sent when supplier's response is incomplete and additional information/fields
+    are required before the RFQ can be properly evaluated.
+
+    Attributes:
+        missing_fields: Comma-separated list of required fields missing from the quote.
+        additional_requests: Any additional information or clarifications needed.
+        deadline: Optional deadline for providing the information.
+        include_urgency_note: Whether to emphasize urgency of the request.
+    """
+
+    missing_fields: str = Field(min_length=1, max_length=2000)
+    additional_requests: str = Field(default="", max_length=2000)
+    deadline: str = Field(default="", max_length=255)
+    include_urgency_note: bool = False
+
+
 class AttachmentRead(BaseModel):
     """Output contract for a stored attachment."""
 
